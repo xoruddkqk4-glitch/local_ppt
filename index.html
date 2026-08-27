@@ -1,1 +1,101 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Local ppt</title><link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"><link rel="stylesheet" href="style.css"></head><body data-design="bauhaus"><header class="app-header"><a class="brand" href="#">LOCAL PPT</a><p>LOCAL PRESENTATION STUDIO</p><div><button id="addPageButton">+ 페이지</button><button id="fullscreenButton">전체 화면 <kbd>F</kbd></button></div></header><main class="workspace"><aside class="editor-panel"><section class="panel-section"><div class="section-heading"><span>01</span><h1>디자인 선택</h1></div><label class="select-label">프레젠테이션 스타일<select id="designSelect"><option value="bauhaus">Bauhaus</option><option value="glass">Glassmorphism</option><option value="clay">Claymorphism</option><option value="brutal">Neo-Brutalism</option><option value="skeuo">Skeuomorphism</option></select></label><p id="designHint" class="guide"></p></section><section class="panel-section"><div class="section-heading"><span>02</span><h2>템플릿 선택</h2></div><label class="select-label">레이아웃 템플릿<select id="templateSelect"><option value="">템플릿을 선택하세요</option><option value="mindmap">마인드맵</option><option value="bullet">개조식</option><option value="table">테이블</option></select></label></section><section id="contentEditor" class="panel-section is-disabled"><div class="section-heading"><span>03</span><h2>내용 입력</h2></div><p id="templateHint" class="guide">템플릿을 선택하면 입력 필드가 열립니다.</p><div id="inputFields"></div><div id="contentActions"></div><label class="image-upload">이미지 첨부<input id="imageInput" type="file" accept="image/*"><strong>이미지 선택</strong></label><p id="imageInfo" class="guide">첨부된 이미지 없음</p></section></aside><section class="stage-panel"><div class="stage-toolbar"><div id="pageList" class="page-list"></div><span>개체를 마우스로 드래그하여 이동 · 우하단 핸들로 크기 조절</span></div><div id="presentationStage" class="presentation-stage" tabindex="0"></div></section></main><template id="emptyStageTemplate"><div class="empty-stage"><h2>템플릿을<br>선택하세요.</h2><p>왼쪽 패널에서 시작합니다.</p></div></template><script src="templates/schema.js"></script><script src="designs/options.js"></script><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local ppt</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-design="bauhaus">
+  <header class="app-header">
+    <a class="brand" href="#" aria-label="Local ppt 홈">LOCAL PPT</a>
+    <p>LOCAL PRESENTATION STUDIO</p>
+    <div class="header-actions">
+      <button id="loadProjectButton" class="button">불러오기</button>
+      <button id="saveProjectButton" class="button">현재 txt에 저장</button>
+      <button id="saveAsProjectButton" class="button">다른 이름으로 저장</button>
+      <button id="undoButton" class="button">되돌리기 <kbd>Ctrl Z</kbd></button>
+      <button id="addPageButton" class="button button-dark">+ 본문 페이지</button>
+      <button id="fullscreenButton" class="button button-blue">전체 화면 <kbd>F</kbd></button>
+      <input id="projectFileInput" type="file" accept=".txt,.json,text/plain,application/json" hidden>
+    </div>
+  </header>
+  <main class="workspace">
+    <aside class="editor-panel">
+      <section class="panel-section">
+        <div class="section-heading"><span>01</span><h1>디자인</h1></div>
+        <label class="select-label">프레젠테이션 전체 디자인
+          <select id="designSelect">
+            <option value="bauhaus">Bauhaus</option>
+            <option value="clay">Claymorphism</option>
+            <option value="brutal">Neo-Brutalism</option>
+            <option value="skeuo">Skeuomorphism</option>
+          </select>
+        </label>
+        <p id="designHint" class="guide"></p>
+      </section>
+
+      <section id="templateSection" class="panel-section">
+        <div class="section-heading"><span>02</span><h2>본문 템플릿</h2></div>
+        <label class="select-label">템플릿
+          <select id="templateSelect">
+            <option value="">템플릿을 선택하세요</option>
+            <option value="bullet">개조식</option>
+            <option value="mindmap">마인드맵</option>
+            <option value="object">개체형</option>
+          </select>
+        </label>
+        <div id="objectOptions" class="object-options" hidden>
+          <label id="layoutVariantLabel" class="select-label">레이아웃
+            <select id="layoutVariantSelect"></select>
+          </label>
+          <label id="diagramVariantLabel" class="select-label">다이어그램
+            <select id="diagramVariantSelect"></select>
+          </label>
+        </div>
+      </section>
+
+      <section id="itemSection" class="panel-section">
+        <div class="section-heading"><span>03</span><h2>항목 관리</h2></div>
+        <p id="itemHint" class="guide">오른쪽 개체를 더블클릭하면 내용을 직접 수정할 수 있습니다.</p>
+        <div class="action-grid">
+          <button id="addItemButton" class="button">+ 항목</button>
+          <button id="removeItemButton" class="button">− 항목</button>
+        </div>
+        <label class="image-upload">이미지 개체 추가
+          <input id="imageInput" type="file" accept="image/*" multiple>
+          <strong>이미지 선택</strong>
+        </label>
+        <p id="imageInfo" class="guide">여러 이미지를 한 번에 선택할 수 있습니다.</p>
+      </section>
+    </aside>
+
+    <section class="stage-panel" aria-label="프레젠테이션 편집 영역">
+      <div class="stage-toolbar">
+        <div id="pageList" class="page-list"></div>
+        <span id="stageGuide">더블클릭: 편집 · Ctrl+클릭: 복수 선택 · 드래그: 이동 · 격자 스냅</span>
+      </div>
+      <div id="textToolbar" class="text-toolbar" hidden aria-label="텍스트 서식">
+        <strong>텍스트</strong>
+        <label>색상 <input id="textColorInput" type="color" value="#151515" aria-label="텍스트 색상"></label>
+        <div class="text-align-group" aria-label="텍스트 정렬">
+          <button class="text-tool-button" type="button" data-text-align="left" aria-label="왼쪽 정렬">L</button>
+          <button class="text-tool-button" type="button" data-text-align="center" aria-label="가운데 정렬">C</button>
+          <button class="text-tool-button" type="button" data-text-align="right" aria-label="오른쪽 정렬">R</button>
+        </div>
+        <label>크기 <input id="textSizeInput" type="number" min="8" max="160" step="1" aria-label="텍스트 크기"></label>
+        <button id="autoTextSizeButton" class="text-tool-button" type="button">자동 맞춤</button>
+        <button id="closeTextToolbarButton" class="text-tool-button" type="button" aria-label="텍스트 서식 닫기">×</button>
+      </div>
+      <div id="presentationStage" class="presentation-stage" tabindex="0" aria-label="현재 페이지 캔버스"></div>
+    </section>
+  </main>
+  <script src="templates/schema.js"></script>
+  <script src="designs/options.js"></script>
+  <script src="layouts/options.js"></script>
+  <script src="diagrams/options.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
