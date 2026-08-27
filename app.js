@@ -637,7 +637,7 @@ function beginDrag(event, object) {
   if (event.ctrlKey || event.metaKey) {
     if (state.selectedIds.has(object.id)) state.selectedIds.delete(object.id);
     else state.selectedIds.add(object.id);
-    renderStage();
+    updateSelectionClasses();
     renderControls();
     return;
   }
@@ -646,8 +646,8 @@ function beginDrag(event, object) {
     state.selectedIds.clear();
     state.selectedIds.add(object.id);
   }
+  updateSelectionClasses();
   renderControls();
-  snapshot();
   const start = getStagePoint(event);
   const selected = currentPage().objects.filter((item) => state.selectedIds.has(item.id));
   const origins = selected.map((item) => ({ item, x: item.x, y: item.y }));
@@ -655,9 +655,17 @@ function beginDrag(event, object) {
   const targets = getSnapTargets(state.selectedIds);
   const thresholdX = SNAP_DISTANCE_PX / stage.clientWidth * 100;
   const thresholdY = SNAP_DISTANCE_PX / stage.clientHeight * 100;
+  let dragStarted = false;
 
   const move = (moveEvent) => {
     const point = getStagePoint(moveEvent);
+    const distanceX = (point.x - start.x) / 100 * stage.clientWidth;
+    const distanceY = (point.y - start.y) / 100 * stage.clientHeight;
+    if (!dragStarted) {
+      if (Math.hypot(distanceX, distanceY) < 3) return;
+      snapshot();
+      dragStarted = true;
+    }
     const rawDx = clamp(-bounds.left, point.x - start.x, 100 - bounds.right);
     const rawDy = clamp(-bounds.top, point.y - start.y, 100 - bounds.bottom);
     const horizontalSnap = findSnap(
@@ -681,11 +689,19 @@ function beginDrag(event, object) {
   const end = () => {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", end);
-    state.guides = [];
-    renderStage();
+    if (dragStarted) {
+      state.guides = [];
+      renderStage();
+    }
   };
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end);
+}
+
+function updateSelectionClasses() {
+  stage.querySelectorAll(".canvas-object").forEach((element) => {
+    element.classList.toggle("is-selected", state.selectedIds.has(element.dataset.objectId));
+  });
 }
 
 function beginResize(event, object) {
