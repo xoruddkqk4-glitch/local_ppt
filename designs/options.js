@@ -1,0 +1,1 @@
+window.PptDesigns = { bauhaus:"기하학, 삼원색, 그리드, 기능주의", clay:"점토감, soft 3D, 두꺼운 그림자, 파스텔", brutal:"thick border, high contrast, hard shadow, bold type", skeuo:"realistic texture, wood/leather, 3D button, tactile" };
