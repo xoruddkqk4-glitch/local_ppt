@@ -198,11 +198,12 @@ function layoutMindmapTree(page) {
 
 function buildObjectTemplate(page, itemCount) {
   const images = page.objects.filter((object) => object.type === "image");
-  page.objects = [createTextObject("page-title", getVariantTitle(page), 7, 7, 52, 16, { textAlign: "left" }), ...images];
+  page.objects = [createTextObject("page-title", getVariantTitle(page), 7, 7, 86, 16, { textAlign: "left" }), ...images];
   const count = Math.max(MIN_ITEMS, Math.min(MAX_ITEMS, itemCount));
 
   if (page.objectCategory === "layout") {
     if (page.variant === "cards") addCardLayout(page, count);
+    if (page.variant === "cardsAccent") addSideAccentCardLayout(page, count);
     if (page.variant === "table") addTableLayout(page, count);
     if (page.variant === "compare") addCompareLayout(page, Math.max(2, count));
   } else {
@@ -227,6 +228,28 @@ function addCardLayout(page, count) {
     const column = i % columns;
     const row = Math.floor(i / columns);
     page.objects.push(createTextObject("card", `카드 ${i + 1}`, 9 + column * (w + 6), 32 + row * (h + 5), w, h, { item: true }));
+  }
+}
+
+function addSideAccentCardLayout(page, count) {
+  const columns = Math.min(3, count);
+  const rows = Math.ceil(count / columns);
+  const columnGap = 5;
+  const rowGap = 5;
+  const width = (84 - columnGap * (columns - 1)) / columns;
+  const height = Math.min(20, (52 - rowGap * (rows - 1)) / rows);
+  for (let i = 0; i < count; i += 1) {
+    const column = i % columns;
+    const row = Math.floor(i / columns);
+    page.objects.push(createTextObject(
+      "side-accent-card",
+      `항목 ${i + 1}\n설명을 입력하세요`,
+      8 + column * (width + columnGap),
+      32 + row * (height + rowGap),
+      width,
+      height,
+      { item: true, textAlign: "left" }
+    ));
   }
 }
 
@@ -256,10 +279,24 @@ function addProcessDiagram(page, count) {
 }
 
 function addTimelineDiagram(page, count) {
+  const presets = [
+    ["아이디어 발상", "문제 정의 및 브레인스토밍"],
+    ["검증", "프로토타입 테스트와 피드백"],
+    ["개발", "기능 구현과 통합"],
+    ["출시", "배포 및 사용자 도입"],
+    ["최적화", "데이터 기반 개선 반복"]
+  ];
+  const span = 88 / count;
+  const width = Math.min(17, span * .82);
   for (let i = 0; i < count; i += 1) {
-    const x = 7 + i * (86 / count);
-    const y = i % 2 === 0 ? 34 : 57;
-    page.objects.push(createTextObject("timeline-node", `시점 ${i + 1}`, x, y, Math.min(18, 75 / count), 16, { item: true, node: true, sequence: i }));
+    const centerX = 6 + span * (i + .5);
+    const y = i % 2 === 0 ? 29 : 58;
+    const [title, description] = presets[i] || [`시점 ${i + 1}`, "세부 내용을 입력하세요"];
+    page.objects.push(createTextObject("timeline-node", `${title}\n${description}`, centerX - width / 2, y, width, 15, {
+      item: true,
+      node: true,
+      sequence: i
+    }));
   }
 }
 
@@ -473,7 +510,19 @@ function createObjectElement(object) {
   } else {
     const text = document.createElement("div");
     text.className = `canvas-text ${object.role}`;
-    text.textContent = object.text;
+    if (["timeline-node", "side-accent-card"].includes(object.role)) {
+      const [title, ...description] = object.text.split("\n");
+      text.dataset.fitText = object.text;
+      const titleElement = document.createElement("strong");
+      titleElement.className = object.role === "timeline-node" ? "timeline-title" : "side-accent-title";
+      titleElement.textContent = title;
+      const descriptionElement = document.createElement("span");
+      descriptionElement.className = object.role === "timeline-node" ? "timeline-description" : "side-accent-description";
+      descriptionElement.textContent = description.join("\n");
+      text.append(titleElement, descriptionElement);
+    } else {
+      text.textContent = object.text;
+    }
     applyTextObjectStyle(text, object, element);
     element.append(text);
     element.addEventListener("dblclick", (event) => beginTextEdit(event, object, element, text));
@@ -549,6 +598,7 @@ function beginTextEdit(event, object, wrapper, text) {
   renderControls();
   showTextToolbar(object, text);
   wrapper.classList.add("is-editing");
+  if (["timeline-node", "side-accent-card"].includes(object.role)) text.textContent = object.text;
   text.contentEditable = "true";
   text.focus();
   const range = document.createRange();
@@ -790,13 +840,68 @@ function renderConnections(page) {
       drawConnection(parent, node);
     });
   }
-  if (page.template === "object" && page.objectCategory === "diagram" && ["process", "timeline", "cycle"].includes(page.variant)) {
+  if (page.template === "object" && page.objectCategory === "diagram" && page.variant === "timeline") {
+    renderTimelinePath(page);
+  }
+  if (page.template === "object" && page.objectCategory === "diagram" && ["process", "cycle"].includes(page.variant)) {
     const nodes = page.objects.filter((object) => object.node).sort((a, b) => a.sequence - b.sequence);
     nodes.forEach((node, index) => {
       const next = nodes[index + 1] || (page.variant === "cycle" ? nodes[0] : null);
       if (next) drawConnection(node, next);
     });
   }
+}
+
+function renderTimelinePath(page) {
+  const nodes = page.objects.filter((object) => object.role === "timeline-node").sort((a, b) => a.sequence - b.sequence);
+  if (!nodes.length) return;
+  const namespace = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(namespace, "svg");
+  svg.classList.add("timeline-path");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("aria-hidden", "true");
+
+  const definitions = document.createElementNS(namespace, "defs");
+  const marker = document.createElementNS(namespace, "marker");
+  marker.setAttribute("id", "timeline-arrow");
+  marker.setAttribute("viewBox", "0 0 10 10");
+  marker.setAttribute("refX", "8");
+  marker.setAttribute("refY", "5");
+  marker.setAttribute("markerWidth", "7");
+  marker.setAttribute("markerHeight", "7");
+  marker.setAttribute("orient", "auto-start-reverse");
+  const arrow = document.createElementNS(namespace, "path");
+  arrow.setAttribute("d", "M 1 1 L 9 5 L 1 9");
+  arrow.setAttribute("class", "timeline-arrow-head");
+  marker.append(arrow);
+  definitions.append(marker);
+  svg.append(definitions);
+
+  const centers = nodes.map((node) => node.x + node.w / 2);
+  const baseline = 52;
+  nodes.forEach((node, index) => {
+    const previousCenter = centers[index - 1];
+    const nextCenter = centers[index + 1];
+    const startX = index === 0 ? Math.max(3, centers[index] - (nextCenter ? (nextCenter - centers[index]) / 2 : 8)) : (previousCenter + centers[index]) / 2;
+    const endX = index === nodes.length - 1 ? Math.min(97, centers[index] + (previousCenter ? (centers[index] - previousCenter) / 2 : 8)) : (centers[index] + nextCenter) / 2;
+    const apex = index % 2 === 0 ? node.y - 3 : node.y + node.h + 3;
+    const controlY = 2 * apex - baseline;
+    const path = document.createElementNS(namespace, "path");
+    path.setAttribute("d", `M ${startX} ${baseline} Q ${centers[index]} ${controlY} ${endX} ${baseline}`);
+    path.setAttribute("class", "timeline-curve");
+    path.setAttribute("marker-end", "url(#timeline-arrow)");
+    svg.append(path);
+  });
+
+  const startDot = document.createElementNS(namespace, "circle");
+  const firstGap = centers[1] ? (centers[1] - centers[0]) / 2 : 8;
+  startDot.setAttribute("cx", `${Math.max(3, centers[0] - firstGap)}`);
+  startDot.setAttribute("cy", `${baseline}`);
+  startDot.setAttribute("r", "1");
+  startDot.setAttribute("class", "timeline-start-dot");
+  svg.append(startDot);
+  stage.append(svg);
 }
 
 function drawConnection(from, to) {
@@ -822,7 +927,7 @@ function fitAllText() {
     if (mindTexts.has(text)) return;
     if (text.closest(".canvas-object")?.dataset.manualFontSize) return;
     const rect = text.getBoundingClientRect();
-    const lines = (text.textContent || "").split("\n");
+    const lines = (text.dataset.fitText || text.textContent || "").split("\n");
     const longest = Math.max(...lines.map((line) => line.length), 1);
     const byWidth = (rect.width - 18) / longest * 1.55;
     const byHeight = (rect.height - 12) / (lines.length * 1.15);
@@ -866,7 +971,7 @@ function fitMindmapTextByLevel(mindTexts) {
 
 function getTextFitSize(text) {
   const rect = text.getBoundingClientRect();
-  const lines = (text.textContent || "").split("\n");
+  const lines = (text.dataset.fitText || text.textContent || "").split("\n");
   const longest = Math.max(...lines.map((line) => line.length), 1);
   return Math.max(1, Math.min((rect.width - 12) / longest * 1.55, (rect.height - 10) / (lines.length * 1.15)));
 }
@@ -1067,7 +1172,7 @@ $("#diagramVariantSelect").addEventListener("change", (event) => {
   snapshot();
   page.objectCategory = "diagram";
   page.variant = event.target.value;
-  buildObjectTemplate(page, 3);
+  buildObjectTemplate(page, page.variant === "timeline" ? 5 : 3);
   hideTextToolbar();
   render();
 });

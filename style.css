@@ -72,8 +72,22 @@ kbd { border:1px solid currentColor; padding:1px 3px; font-size:10px; }
 .node.mind-level-3 { background:var(--blue); }
 .node.mind-level-4 { background:var(--ink); color:#fff; }
 .card { display:flex; align-items:center; justify-content:center; border:3px solid var(--ink); background:#fff; }
+.side-accent-card { border-left:6px solid var(--blue); }
+.side-accent-card .canvas-text { flex-direction:column; align-items:flex-start; justify-content:center !important; gap:.35em; padding:4px 10px 4px 18px; line-height:1.15; }
+.side-accent-title,.side-accent-description { display:block; width:100%; }
+.side-accent-title { font-size:1em; font-weight:900; }
+.side-accent-description { font-size:.68em; font-weight:500; line-height:1.3; opacity:.58; }
 .compare-card:first-of-type { background:var(--red); }
 .connection { position:absolute; z-index:1; height:3px; min-height:3px; background:var(--ink); transform-origin:left center; pointer-events:none; }
+.timeline-path { position:absolute; inset:0; z-index:1; width:100%; height:100%; overflow:visible; pointer-events:none; }
+.timeline-curve { fill:none; stroke:var(--blue); stroke-width:3; vector-effect:non-scaling-stroke; }
+.timeline-arrow-head { fill:none; stroke:var(--blue); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
+.timeline-start-dot { fill:var(--blue); stroke:var(--blue); vector-effect:non-scaling-stroke; }
+.timeline-node.node { border:0; border-radius:0; background:transparent; }
+.timeline-node .canvas-text { flex-direction:column; justify-content:center !important; gap:.22em; padding:0 .25em; line-height:1.12; }
+.timeline-title,.timeline-description { display:block; width:100%; }
+.timeline-title { font-size:1em; font-weight:900; }
+.timeline-description { font-size:.58em; font-weight:550; line-height:1.25; opacity:.78; }
 .object-image { width:100%; height:100%; object-fit:cover; display:block; border:3px solid var(--ink); pointer-events:none; }
 .resize-handle { position:absolute; right:-8px; bottom:-8px; width:16px; height:16px; border:2px solid var(--ink); background:var(--red); cursor:nwse-resize; z-index:8; }
 .table-object { width:100%; height:100%; border-collapse:collapse; background:#fff; font-size:var(--table-font-size,20px); }
