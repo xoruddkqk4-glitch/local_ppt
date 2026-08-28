@@ -15,13 +15,19 @@ const PROJECT_PICKER_ID = "local-ppt-project";
 const STRUCTURED_LAYOUT_ROLES = new Set([
   "metric-card", "step-card", "stat-card", "feature-card", "comparison-panel", "definition-card",
   "process-flow-card", "icon-info-card", "numbered-card", "concept-card",
-  "notice-panel", "warning-panel", "tip-panel"
+  "notice-panel", "warning-panel", "tip-panel", "focus-panel",
+  "checklist-card", "warning-summary-card", "detail-metric-card"
 ]);
 const TABLE_LAYOUT_VARIANTS = new Set(["table", "tableDualNotices"]);
+const ITEM_COUNT_ROLE_BY_VARIANT = { pairedCheckWarnings: "checklist-card" };
 
 let currentProjectFileHandle = null;
 let currentProjectFileName = "local-ppt.txt";
 let tableManagementAxis = "row";
+let copiedObjects = [];
+let copiedFromPageId = null;
+let pasteOffsetCount = 0;
+let copiedPage = null;
 
 const state = {
   design: "bauhaus",
@@ -271,11 +277,24 @@ function buildObjectTemplate(page, itemCount) {
     if (page.variant === "tableDualNotices") addTableDualNoticesLayout(page, count);
     if (page.variant === "stepsNotices") addStepsNoticesLayout(page, count);
     if (page.variant === "conceptNotices") addConceptNoticesLayout(page, count);
+    if (page.variant === "dualOverviewFeatures") addDualOverviewFeaturesLayout(page, count);
+    if (page.variant === "focusCards") addFocusCardsLayout(page, count);
+    if (page.variant === "sideAccentGrid") addSideAccentGridLayout(page, count);
+    if (page.variant === "pairedCheckWarnings") addPairedCheckWarningsLayout(page, count);
+    if (page.variant === "detailMetrics") addDetailMetricsLayout(page, count);
   } else {
     if (page.variant === "process") addProcessDiagram(page, count);
     if (page.variant === "timeline") addTimelineDiagram(page, count);
     if (page.variant === "pyramid") addPyramidDiagram(page, count);
     if (page.variant === "cycle") addCycleDiagram(page, count);
+    if (page.variant === "chain") addChainDiagram(page, count);
+    if (page.variant === "ribbonArrow") addRibbonArrowDiagram(page, count);
+    if (page.variant === "funnel") addFunnelDiagram(page, count);
+    if (page.variant === "venn") addVennDiagram(page, count);
+    if (page.variant === "target") addTargetDiagram(page, count);
+    if (page.variant === "connectedCircles") addConnectedCirclesDiagram(page, count);
+    if (page.variant === "quadrant") addQuadrantDiagram(page);
+    if (page.variant === "vs") addVsDiagram(page);
   }
 }
 
@@ -464,6 +483,51 @@ function addConceptNoticesLayout(page, count) {
   );
 }
 
+function addDualOverviewFeaturesLayout(page, count) {
+  page.objects.push(
+    createTextObject("notice-panel", "개요\n첫 번째 핵심 내용\n설명을 입력하세요", 4, 25, 46, 28, { textAlign: "left" }),
+    createTextObject("tip-panel", "배경\n두 번째 핵심 내용\n설명을 입력하세요", 53, 25, 43, 28, { textAlign: "left" })
+  );
+  addResponsiveCards(page, count, "icon-info-card", (index) => `ICON ${index + 1}\n항목 ${index + 1}\n설명을 입력하세요`, {
+    x: 4, y: 58, w: 92, h: 21, columns: 4, gapX: 2, gapY: 2
+  });
+  page.objects.push(createTextObject("tip-panel", "TIP\n전체 안내\n설명을 입력하세요", 4, 84, 92, 8, { textAlign: "left" }));
+}
+
+function addFocusCardsLayout(page, count) {
+  page.objects.push(createTextObject(
+    "focus-panel",
+    "핵심 메시지\n중앙 강조 내용을 입력하세요\n보조 설명을 입력하세요",
+    8, 27, 84, 31,
+    { textAlign: "center" }
+  ));
+  addResponsiveCards(page, count, "concept-card", (index) => `POINT ${index + 1}\n항목 ${index + 1}\n설명을 입력하세요`, {
+    x: 8, y: 65, w: 84, h: 24, columns: 3, gapX: 2, gapY: 2
+  });
+}
+
+function addSideAccentGridLayout(page, count) {
+  addResponsiveCards(page, count, "side-accent-card", (index) => `항목 ${index + 1}\n설명을 입력하세요`, {
+    x: 5, y: 25, w: 90, h: 64, columns: 2, gapX: 2, gapY: 2
+  });
+}
+
+function addPairedCheckWarningsLayout(page, count) {
+  addResponsiveCards(page, count, "checklist-card", (index) => `${index + 1}분\n점검 카드 ${index + 1}\n확인 내용을 입력하세요`, {
+    x: 4, y: 24, w: 92, h: 45, columns: 3, gapX: 2.5, gapY: 2.5
+  });
+  addResponsiveCards(page, count, "warning-summary-card", (index) => `주의 ${index + 1}\n경고 항목 ${index + 1}\n설명을 입력하세요`, {
+    x: 4, y: 75, w: 92, h: 16, columns: 3, gapX: 2.5, gapY: 2
+  });
+}
+
+function addDetailMetricsLayout(page, count) {
+  addResponsiveCards(page, count, "detail-metric-card", (index) => `${(index + 1) * 10}%\n상세 항목 ${index + 1}\n핵심 설명과 보조 내용을 입력하세요`, {
+    x: 4, y: 24, w: 92, h: 59, columns: 2, gapX: 2, gapY: 2
+  });
+  page.objects.push(createTextObject("tip-panel", "요약\n전체 안내\n설명을 입력하세요", 4, 87, 92, 7, { textAlign: "center" }));
+}
+
 function addProcessDiagram(page, count) {
   const w = Math.min(18, 75 / count);
   for (let i = 0; i < count; i += 1) {
@@ -504,12 +568,139 @@ function addPyramidDiagram(page, count) {
 function addCycleDiagram(page, count) {
   const centerX = 50;
   const centerY = 55;
-  const radiusX = 31;
+  const radiusX = 18;
   const radiusY = 27;
   for (let i = 0; i < count; i += 1) {
     const angle = (-Math.PI / 2) + (Math.PI * 2 * i / count);
-    page.objects.push(createTextObject("cycle-node", `단계 ${i + 1}`, centerX + Math.cos(angle) * radiusX - 8, centerY + Math.sin(angle) * radiusY - 7, 16, 14, { item: true, node: true, sequence: i }));
+    page.objects.push(createTextObject("cycle-node", `단계 ${i + 1}`, centerX + Math.cos(angle) * radiusX - 4.5, centerY + Math.sin(angle) * radiusY - 8, 9, 16, { item: true, node: true, sequence: i }));
   }
+}
+
+function addChainDiagram(page, count) {
+  const span = 82 / count;
+  const width = Math.min(16, span * .78);
+  for (let index = 0; index < count; index += 1) {
+    page.objects.push(createTextObject(
+      "chain-node",
+      `항목 ${index + 1}`,
+      9 + span * index + (span - width) / 2,
+      index % 2 === 0 ? 43 : 47,
+      width,
+      16,
+      { item: true, node: true, sequence: index }
+    ));
+  }
+}
+
+function addRibbonArrowDiagram(page, count) {
+  const span = 86 / count;
+  const width = Math.min(22, span + 1.2);
+  for (let index = 0; index < count; index += 1) {
+    page.objects.push(createTextObject(
+      "ribbon-step",
+      `단계 ${index + 1}`,
+      7 + span * index,
+      40,
+      width,
+      24,
+      { item: true, sequence: index }
+    ));
+  }
+}
+
+function addFunnelDiagram(page, count) {
+  const height = Math.min(12, 58 / count);
+  for (let index = 0; index < count; index += 1) {
+    const width = 72 - index * (44 / Math.max(count - 1, 1));
+    page.objects.push(createTextObject(
+      "funnel-level",
+      `단계 ${index + 1}`,
+      50 - width / 2,
+      27 + index * (height + 2),
+      width,
+      height,
+      { item: true, sequence: index }
+    ));
+  }
+}
+
+function addVennDiagram(page, count) {
+  const width = count === 2 ? 22 : count === 3 ? 20 : 18;
+  const step = count === 2 ? 14 : count === 3 ? 11 : 9.5;
+  const totalWidth = width + step * (count - 1);
+  const startX = 50 - totalWidth / 2;
+  for (let index = 0; index < count; index += 1) {
+    page.objects.push(createTextObject(
+      "venn-circle",
+      `영역 ${index + 1}`,
+      startX + step * index,
+      37 + (index % 2) * 3,
+      width,
+      36,
+      { item: true, sequence: index, color: ["blue", "red", "yellow", "blue"][index] }
+    ));
+  }
+}
+
+function addTargetDiagram(page, count) {
+  const outerHeight = 56;
+  const innerHeight = 18;
+  for (let index = 0; index < count; index += 1) {
+    const height = outerHeight - index * ((outerHeight - innerHeight) / Math.max(count - 1, 1));
+    const width = height * .5625;
+    page.objects.push(createTextObject(
+      "target-ring",
+      `목표 ${index + 1}`,
+      50 - width / 2,
+      55 - height / 2,
+      width,
+      height,
+      { item: true, sequence: index, color: ["blue", "yellow", "red"][index % 3] }
+    ));
+  }
+}
+
+function addConnectedCirclesDiagram(page, count) {
+  const center = createTextObject("connected-circle", "중심", 45.5, 44, 9, 16, { item: true, node: true, sequence: 0, rootNode: true });
+  page.objects.push(center);
+  const satelliteCount = Math.max(0, count - 1);
+  for (let index = 0; index < satelliteCount; index += 1) {
+    const angle = -Math.PI / 2 + Math.PI * 2 * index / satelliteCount;
+    page.objects.push(createTextObject(
+      "connected-circle",
+      `항목 ${index + 2}`,
+      50 + Math.cos(angle) * 18 - 4,
+      52 + Math.sin(angle) * 27 - 7,
+      8,
+      14,
+      { item: true, node: true, sequence: index + 1 }
+    ));
+  }
+}
+
+function addQuadrantDiagram(page) {
+  const labels = ["영역 1", "영역 2", "영역 3", "영역 4"];
+  labels.forEach((label, index) => {
+    const column = index % 2;
+    const row = Math.floor(index / 2);
+    page.objects.push(createTextObject(
+      "quadrant-item",
+      label,
+      15 + column * 36,
+      28 + row * 29,
+      34,
+      27,
+      { item: true, sequence: index }
+    ));
+  });
+}
+
+function addVsDiagram(page) {
+  page.objects.push(
+    createTextObject("vs-node", "A", 20, 34, 22, 39, { item: true, sequence: 0, color: "blue" }),
+    createTextObject("vs-label", "VS", 45, 45, 10, 16, { item: false }),
+    createTextObject("vs-node", "B", 58, 34, 22, 39, { item: true, sequence: 1, color: "red" })
+  );
 }
 
 function getItemCount(page) {
@@ -519,6 +710,8 @@ function getItemCount(page) {
   if (page.template === "object") {
     const table = TABLE_LAYOUT_VARIANTS.has(page.variant) ? page.objects.find((object) => object.type === "table") : null;
     if (table) return table.cells.length - 1;
+    const countRole = ITEM_COUNT_ROLE_BY_VARIANT[page.variant];
+    if (countRole) return page.objects.filter((object) => object.role === countRole).length;
     return page.objects.filter((object) => object.item && object.type !== "image").length;
   }
   return 0;
@@ -540,7 +733,12 @@ function getLayoutDefaultCount(variant) {
     iconGridAlert: 6,
     tableDualNotices: 5,
     stepsNotices: 3,
-    conceptNotices: 3
+    conceptNotices: 3,
+    dualOverviewFeatures: 4,
+    focusCards: 3,
+    sideAccentGrid: 8,
+    pairedCheckWarnings: 3,
+    detailMetrics: 4
   }[variant] || 3;
 }
 
@@ -554,7 +752,53 @@ function getLayoutMaximumCount(variant) {
   if (["bannerMetrics", "stepsMedia", "tableStats", "mediaFeatures", "scaleDefinitions", "stepsNotices", "conceptNotices"].includes(variant)) return 6;
   if (variant === "processNotices") return 10;
   if (variant === "iconGridAlert") return 9;
+  if (variant === "dualOverviewFeatures") return 8;
+  if (variant === "focusCards") return 6;
+  if (variant === "sideAccentGrid") return 10;
+  if (variant === "pairedCheckWarnings") return 6;
+  if (variant === "detailMetrics") return 6;
   return MAX_ITEMS;
+}
+
+function getDiagramDefaultCount(variant) {
+  return {
+    process: 4,
+    timeline: 5,
+    pyramid: 4,
+    cycle: 4,
+    chain: 4,
+    ribbonArrow: 4,
+    funnel: 4,
+    venn: 3,
+    target: 4,
+    connectedCircles: 5,
+    quadrant: 4,
+    vs: 2
+  }[variant] || 4;
+}
+
+function getDiagramMinimumCount(variant) {
+  if (variant === "vs") return 2;
+  if (variant === "quadrant") return 4;
+  if (["cycle", "connectedCircles"].includes(variant)) return 3;
+  return 2;
+}
+
+function getDiagramMaximumCount(variant) {
+  return {
+    process: 8,
+    timeline: 7,
+    pyramid: 6,
+    cycle: 8,
+    chain: 8,
+    ribbonArrow: 6,
+    funnel: 6,
+    venn: 4,
+    target: 6,
+    connectedCircles: 7,
+    quadrant: 4,
+    vs: 2
+  }[variant] || MAX_ITEMS;
 }
 
 function getSelectedActionObject(page) {
@@ -577,6 +821,7 @@ function canAddItem(page, selected) {
     return tableManagementAxis === "column" ? columnCount < MAX_ITEMS : selected.cells.length - 1 < MAX_ITEMS;
   }
   if (page.template === "object" && page.objectCategory === "layout" && getItemCount(page) >= getLayoutMaximumCount(page.variant)) return false;
+  if (page.template === "object" && page.objectCategory === "diagram" && getItemCount(page) >= getDiagramMaximumCount(page.variant)) return false;
   if (getItemCount(page) >= MAX_ITEMS) return false;
   if (page.template === "mindmap") return selected.mindLevel < 4;
   return true;
@@ -590,7 +835,11 @@ function canRemoveItem(page, selected) {
     return tableManagementAxis === "column" ? columnCount > 2 : selected.cells.length > 2;
   }
   if (page.template === "mindmap") return !selected.root;
-  const minimum = page.template === "object" && page.objectCategory === "layout" ? getLayoutMinimumCount(page.variant) : MIN_ITEMS;
+  const minimum = page.template === "object" && page.objectCategory === "layout"
+    ? getLayoutMinimumCount(page.variant)
+    : page.template === "object" && page.objectCategory === "diagram"
+      ? getDiagramMinimumCount(page.variant)
+      : MIN_ITEMS;
   return getItemCount(page) > minimum;
 }
 
@@ -720,7 +969,17 @@ function renderControls() {
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-pressed", String(selected));
   });
-  $("#diagramVariantSelect").value = page.objectCategory === "diagram" ? page.variant : "";
+  $("#layoutVariantCurrent").textContent = page.objectCategory === "layout"
+    ? layouts[page.variant]?.name || "레이아웃 선택"
+    : "레이아웃 선택";
+  document.querySelectorAll("[data-diagram-variant]").forEach((button) => {
+    const selected = page.objectCategory === "diagram" && button.dataset.diagramVariant === page.variant;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  $("#diagramVariantCurrent").textContent = page.objectCategory === "diagram"
+    ? diagrams[page.variant]?.name || "다이어그램 선택"
+    : "다이어그램 선택";
   const itemCount = getItemCount(page);
   const selected = getSelectedActionObject(page);
   const selectedTable = selected?.type === "table" ? selected : null;
@@ -882,6 +1141,7 @@ function getObjectClass(object) {
   if (object.color) classes.push(object.color);
   if (object.mindLevel) classes.push(`mind-level-${object.mindLevel}`);
   if (object.pyramidApex) classes.push("pyramid-apex");
+  if (object.rootNode) classes.push("root-node");
   return classes.join(" ");
 }
 
@@ -1007,6 +1267,7 @@ function beginCellEdit(event, object, rowIndex, columnIndex, cell) {
 function beginDrag(event, object) {
   if (event.button !== 0 || event.target.classList.contains("resize-handle") || event.target.isContentEditable || document.fullscreenElement) return;
   event.preventDefault();
+  stage.focus({ preventScroll: true });
   hideTextToolbar();
 
   if (event.ctrlKey || event.metaKey) {
@@ -1083,6 +1344,7 @@ function beginResize(event, object) {
   if (document.fullscreenElement) return;
   event.preventDefault();
   event.stopPropagation();
+  stage.focus({ preventScroll: true });
   hideTextToolbar();
   snapshot();
   const start = getStagePoint(event);
@@ -1168,12 +1430,17 @@ function renderConnections(page) {
   if (page.template === "object" && page.objectCategory === "diagram" && page.variant === "timeline") {
     renderTimelinePath(page);
   }
-  if (page.template === "object" && page.objectCategory === "diagram" && ["process", "cycle"].includes(page.variant)) {
+  if (page.template === "object" && page.objectCategory === "diagram" && ["process", "cycle", "chain"].includes(page.variant)) {
     const nodes = page.objects.filter((object) => object.node).sort((a, b) => a.sequence - b.sequence);
     nodes.forEach((node, index) => {
       const next = nodes[index + 1] || (page.variant === "cycle" ? nodes[0] : null);
       if (next) drawConnection(node, next);
     });
+  }
+  if (page.template === "object" && page.objectCategory === "diagram" && page.variant === "connectedCircles") {
+    const nodes = page.objects.filter((object) => object.role === "connected-circle").sort((a, b) => a.sequence - b.sequence);
+    const center = nodes[0];
+    nodes.slice(1).forEach((node) => drawConnection(center, node));
   }
 }
 
@@ -1317,7 +1584,12 @@ function populateVariantSelects() {
       <span class="layout-variant-name">${item.name}</span>
     </button>
   `).join("");
-  $("#diagramVariantSelect").innerHTML = '<option value="">선택 안 함</option>' + Object.entries(diagrams).map(([value, item]) => `<option value="${value}">${item.name}</option>`).join("");
+  $("#diagramVariantGrid").innerHTML = Object.entries(diagrams).map(([value, item]) => `
+    <button class="layout-variant-button" type="button" data-diagram-variant="${value}" aria-pressed="false" aria-label="${item.name}">
+      ${getDiagramThumbnailMarkup(value)}
+      <span class="layout-variant-name">${item.name}</span>
+    </button>
+  `).join("");
 }
 
 function getLayoutThumbnailMarkup(variant) {
@@ -1342,9 +1614,33 @@ function getLayoutThumbnailMarkup(variant) {
     iconGridAlert: `<span class="layout-thumbnail icon-grid-alert"><span class="thumb-row thumb-three thumb-two-rows">${block.repeat(6)}</span>${dark}</span>`,
     tableDualNotices: `<span class="layout-thumbnail table-dual-notices"><span class="thumb-table"></span>${two}</span>`,
     stepsNotices: `<span class="layout-thumbnail steps-notices">${three}${dark}${block}</span>`,
-    conceptNotices: `<span class="layout-thumbnail concept-notices">${three}${two}${dark}</span>`
+    conceptNotices: `<span class="layout-thumbnail concept-notices">${three}${two}${dark}</span>`,
+    dualOverviewFeatures: `<span class="layout-thumbnail dual-overview-features">${two}${four}${dark}</span>`,
+    focusCards: `<span class="layout-thumbnail focus-cards">${dark}${three}</span>`,
+    sideAccentGrid: `<span class="layout-thumbnail side-accent-grid"><span class="thumb-row thumb-two thumb-four-rows">${block.repeat(8)}</span></span>`,
+    pairedCheckWarnings: `<span class="layout-thumbnail paired-check-warnings">${three}${three}</span>`,
+    detailMetrics: `<span class="layout-thumbnail detail-metrics"><span class="thumb-row thumb-two thumb-two-rows">${block.repeat(4)}</span>${dark}</span>`
   };
   return previews[variant] || `<span class="layout-thumbnail">${block}</span>`;
+}
+
+function getDiagramThumbnailMarkup(variant) {
+  const node = '<span></span>';
+  const previews = {
+    process: `<span class="diagram-thumbnail process-thumb">${node.repeat(4)}</span>`,
+    timeline: `<span class="diagram-thumbnail timeline-thumb">${node.repeat(5)}</span>`,
+    pyramid: `<span class="diagram-thumbnail pyramid-thumb">${node.repeat(4)}</span>`,
+    cycle: `<span class="diagram-thumbnail cycle-thumb">${node.repeat(4)}</span>`,
+    chain: `<span class="diagram-thumbnail chain-thumb">${node.repeat(4)}</span>`,
+    ribbonArrow: `<span class="diagram-thumbnail ribbon-thumb">${node.repeat(4)}</span>`,
+    funnel: `<span class="diagram-thumbnail funnel-thumb">${node.repeat(4)}</span>`,
+    venn: `<span class="diagram-thumbnail venn-thumb">${node.repeat(3)}</span>`,
+    target: `<span class="diagram-thumbnail target-thumb">${node.repeat(4)}</span>`,
+    connectedCircles: `<span class="diagram-thumbnail connected-thumb">${node.repeat(5)}</span>`,
+    quadrant: `<span class="diagram-thumbnail quadrant-thumb">${node.repeat(4)}</span>`,
+    vs: `<span class="diagram-thumbnail vs-thumb">${node}<b>VS</b>${node}</span>`
+  };
+  return previews[variant] || `<span class="diagram-thumbnail">${node}</span>`;
 }
 
 function serializeProject() {
@@ -1533,15 +1829,35 @@ $("#layoutVariantGrid").addEventListener("click", (event) => {
   render();
 });
 
-$("#diagramVariantSelect").addEventListener("change", (event) => {
-  if (!event.target.value) return;
+$("#layoutVariantToggle").addEventListener("click", () => {
+  const toggle = $("#layoutVariantToggle");
+  const grid = $("#layoutVariantGrid");
+  const expanded = toggle.getAttribute("aria-expanded") !== "true";
+  toggle.setAttribute("aria-expanded", String(expanded));
+  toggle.setAttribute("aria-label", expanded ? "레이아웃 목록 접기" : "레이아웃 목록 펼치기");
+  grid.hidden = !expanded;
+});
+
+$("#diagramVariantGrid").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-diagram-variant]");
+  if (!button) return;
   const page = currentPage();
   snapshot();
   page.objectCategory = "diagram";
-  page.variant = event.target.value;
-  buildObjectTemplate(page, page.variant === "timeline" ? 5 : 3);
+  page.variant = button.dataset.diagramVariant;
+  buildObjectTemplate(page, getDiagramDefaultCount(page.variant));
+  state.selectedIds.clear();
   hideTextToolbar();
   render();
+});
+
+$("#diagramVariantToggle").addEventListener("click", () => {
+  const toggle = $("#diagramVariantToggle");
+  const grid = $("#diagramVariantGrid");
+  const expanded = toggle.getAttribute("aria-expanded") !== "true";
+  toggle.setAttribute("aria-expanded", String(expanded));
+  toggle.setAttribute("aria-label", expanded ? "다이어그램 목록 접기" : "다이어그램 목록 펼치기");
+  grid.hidden = !expanded;
 });
 
 $("#addPageButton").addEventListener("click", () => {
@@ -1602,9 +1918,111 @@ $("#fullscreenButton").addEventListener("click", () => {
   else stage.requestFullscreen();
 });
 
+function isTextInputTarget(target) {
+  const tagName = target?.tagName;
+  return Boolean(target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(tagName));
+}
+
+function copySelectedObjects() {
+  const page = currentPage();
+  const selected = page.objects.filter((object) => state.selectedIds.has(object.id));
+  if (!selected.length) return false;
+  copiedObjects = JSON.parse(JSON.stringify(selected));
+  copiedFromPageId = page.id;
+  pasteOffsetCount = 0;
+  copiedPage = null;
+  return true;
+}
+
+function copyCurrentPage() {
+  const page = currentPage();
+  if (page.type !== "content") return false;
+  copiedPage = JSON.parse(JSON.stringify(page));
+  copiedObjects = [];
+  copiedFromPageId = null;
+  pasteOffsetCount = 0;
+  return true;
+}
+
+function clonePageWithNewIds(sourcePage) {
+  const clone = JSON.parse(JSON.stringify(sourcePage));
+  clone.id = createId("page");
+  const idMap = new Map(clone.objects.map((object) => [object.id, createId(object.role || object.type || "object")]));
+  clone.objects.forEach((object) => {
+    const previousId = object.id;
+    object.id = idMap.get(previousId);
+    if (object.parentId) object.parentId = idMap.get(object.parentId) || null;
+  });
+  return clone;
+}
+
+function pasteCopiedPage() {
+  if (!copiedPage) return false;
+  const clone = clonePageWithNewIds(copiedPage);
+  const insertIndex = state.currentPageIndex + 1;
+  snapshot();
+  state.pages.splice(insertIndex, 0, clone);
+  state.currentPageIndex = insertIndex;
+  state.selectedIds.clear();
+  state.guides = [];
+  hideTextToolbar();
+  render();
+  return true;
+}
+
+function pasteCopiedObjects() {
+  if (!copiedObjects.length) return false;
+  const page = currentPage();
+  const offset = ((pasteOffsetCount % 6) + 1) * 2;
+  const idMap = new Map(copiedObjects.map((object) => [object.id, createId(object.role || object.type || "object")]));
+  const targetMindRoot = page.objects.find((object) => object.root);
+  const clones = copiedObjects.map((source) => {
+    const clone = JSON.parse(JSON.stringify(source));
+    clone.id = idMap.get(source.id);
+    clone.x = clamp(0, Number(source.x) + offset, Math.max(0, 100 - Number(source.w)));
+    clone.y = clamp(0, Number(source.y) + offset, Math.max(0, 100 - Number(source.h)));
+    if (source.root) {
+      clone.root = false;
+      clone.role = "mind-node";
+      clone.node = true;
+      clone.item = true;
+      clone.parentId = copiedFromPageId === page.id ? source.id : targetMindRoot?.id || null;
+      clone.mindLevel = clone.parentId ? 2 : 1;
+    } else if (source.parentId) {
+      clone.parentId = idMap.get(source.parentId)
+        || (copiedFromPageId === page.id ? source.parentId : targetMindRoot?.id || null);
+      if (copiedFromPageId !== page.id && clone.parentId === targetMindRoot?.id) clone.mindLevel = 2;
+    }
+    return clone;
+  });
+  snapshot();
+  page.objects.push(...clones);
+  state.selectedIds = new Set(clones.map((object) => object.id));
+  state.guides = [];
+  pasteOffsetCount += 1;
+  hideTextToolbar();
+  render();
+  return true;
+}
+
 document.addEventListener("keydown", (event) => {
   const activeTag = document.activeElement?.tagName;
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+  const modifier = event.ctrlKey || event.metaKey;
+  const key = event.key.toLowerCase();
+  const editingText = isTextInputTarget(document.activeElement);
+  if (modifier && key === "c" && !editingText && copySelectedObjects()) {
+    event.preventDefault();
+    return;
+  }
+  if (modifier && key === "c" && !editingText && copyCurrentPage()) {
+    event.preventDefault();
+    return;
+  }
+  if (modifier && key === "v" && !editingText && (pasteCopiedObjects() || pasteCopiedPage())) {
+    event.preventDefault();
+    return;
+  }
+  if (modifier && key === "z") {
     event.preventDefault();
     undo();
     return;

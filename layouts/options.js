@@ -13,5 +13,10 @@ window.PptLayouts = {
   iconGridAlert: { name: "아이콘 카드 2×3 + 하단 안내 1×1", description: "아이콘 정보 카드를 2행 3열로 배치하고 하단에 전체 안내를 둡니다." },
   tableDualNotices: { name: "테이블 5×3 + 안내 패널 1×2", description: "3열 테이블 아래에 두 개의 안내 패널을 나란히 배치합니다." },
   stepsNotices: { name: "단계 카드 1×3 + 하단 안내 2×1", description: "세 개의 단계 카드 아래에 전체 너비 안내 두 개를 쌓아 배치합니다." },
-  conceptNotices: { name: "개념 카드 1×3 + 안내 패널 1×2 + 1×1", description: "세 개의 개념 카드와 두 개의 안내 패널, 하단 전체 안내를 조합합니다." }
+  conceptNotices: { name: "개념 카드 1×3 + 안내 패널 1×2 + 1×1", description: "세 개의 개념 카드와 두 개의 안내 패널, 하단 전체 안내를 조합합니다." },
+  dualOverviewFeatures: { name: "상단 패널 1×2 + 기능 카드 1×4 + 하단 안내 1×1", description: "두 개의 상단 개요 패널 아래에 기능 카드와 전체 안내를 배치합니다." },
+  focusCards: { name: "중앙 강조 패널 1×1 + 하단 카드 1×3", description: "넓은 중앙 강조 패널 아래에 핵심 카드를 나란히 배치합니다." },
+  sideAccentGrid: { name: "측면 강조 카드 4×2", description: "세로 강조선이 있는 정보 카드를 4행 2열로 배치합니다." },
+  pairedCheckWarnings: { name: "상단 체크 카드 1×3 + 하단 경고 카드 1×3", description: "상단 점검 카드와 대응하는 하단 경고 카드를 같은 열에 배치합니다." },
+  detailMetrics: { name: "지표 상세 카드 2×2 + 하단 안내 1×1", description: "별도 지표 영역을 포함한 상세 카드와 하단 전체 안내를 배치합니다." }
 };
