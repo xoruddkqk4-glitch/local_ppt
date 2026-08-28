@@ -6,7 +6,7 @@
   <title>Local ppt</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260828-layouts2">
 </head>
 <body data-design="bauhaus">
   <header class="app-header">
@@ -28,11 +28,20 @@
         <div class="section-heading"><span>01</span><h1>디자인</h1></div>
         <label class="select-label">프레젠테이션 전체 디자인
           <select id="designSelect">
-            <option value="bauhaus">Bauhaus</option>
-            <option value="clay">Claymorphism</option>
-            <option value="brutal">Neo-Brutalism</option>
-            <option value="skeuo">Skeuomorphism</option>
-            <option value="swiss">Swiss Minimal</option>
+            <optgroup label="기존 디자인">
+              <option value="bauhaus">Bauhaus</option>
+              <option value="clay">Claymorphism</option>
+              <option value="brutal">Neo-Brutalism</option>
+              <option value="skeuo">Skeuomorphism</option>
+              <option value="swiss">Swiss Minimal</option>
+            </optgroup>
+            <optgroup label="깔끔하고 명확한 디자인">
+              <option value="swiss-grid">Swiss Grid Modern</option>
+              <option value="functional-bauhaus">Functional Bauhaus</option>
+              <option value="soft-minimal">Soft Layered Minimal</option>
+              <option value="controlled-brutal">Controlled Neo-Brutalism</option>
+              <option value="tactile-minimal">Tactile Product Minimal</option>
+            </optgroup>
           </select>
         </label>
         <p id="designHint" class="guide"></p>
@@ -49,9 +58,10 @@
           </select>
         </label>
         <div id="objectOptions" class="object-options" hidden>
-          <label id="layoutVariantLabel" class="select-label">레이아웃
-            <select id="layoutVariantSelect"></select>
-          </label>
+          <div id="layoutVariantSection" class="layout-variant-section">
+            <strong class="option-group-title">레이아웃</strong>
+            <div id="layoutVariantGrid" class="layout-variant-grid" role="group" aria-label="레이아웃 선택"></div>
+          </div>
           <label id="diagramVariantLabel" class="select-label">다이어그램
             <select id="diagramVariantSelect"></select>
           </label>
@@ -99,10 +109,10 @@
       <div id="presentationStage" class="presentation-stage" tabindex="0" aria-label="현재 페이지 캔버스"></div>
     </section>
   </main>
-  <script src="templates/schema.js"></script>
-  <script src="designs/options.js"></script>
-  <script src="layouts/options.js"></script>
-  <script src="diagrams/options.js"></script>
-  <script src="app.js"></script>
+  <script src="templates/schema.js?v=20260828-layouts2"></script>
+  <script src="designs/options.js?v=20260828-layouts2"></script>
+  <script src="layouts/options.js?v=20260828-layouts2"></script>
+  <script src="diagrams/options.js?v=20260828-layouts2"></script>
+  <script src="app.js?v=20260828-layouts2"></script>
 </body>
 </html>

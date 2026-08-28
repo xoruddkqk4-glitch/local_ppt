@@ -12,6 +12,12 @@ const SNAP_DISTANCE_PX = 8;
 const PROJECT_FORMAT = "local-ppt-json";
 const PROJECT_VERSION = 1;
 const PROJECT_PICKER_ID = "local-ppt-project";
+const STRUCTURED_LAYOUT_ROLES = new Set([
+  "metric-card", "step-card", "stat-card", "feature-card", "comparison-panel", "definition-card",
+  "process-flow-card", "icon-info-card", "numbered-card", "concept-card",
+  "notice-panel", "warning-panel", "tip-panel"
+]);
+const TABLE_LAYOUT_VARIANTS = new Set(["table", "tableDualNotices"]);
 
 let currentProjectFileHandle = null;
 let currentProjectFileName = "local-ppt.txt";
@@ -254,6 +260,17 @@ function buildObjectTemplate(page, itemCount) {
     if (page.variant === "cardsAccent") addSideAccentCardLayout(page, count);
     if (page.variant === "table") addTableLayout(page, count);
     if (page.variant === "compare") addCompareLayout(page, Math.max(2, count));
+    if (page.variant === "bannerMetrics") addBannerMetricsLayout(page, count);
+    if (page.variant === "stepsMedia") addStepsMediaLayout(page, count);
+    if (page.variant === "tableStats") addTableStatsLayout(page, count);
+    if (page.variant === "mediaFeatures") addMediaFeaturesLayout(page, count);
+    if (page.variant === "compareSummary") addCompareSummaryLayout(page);
+    if (page.variant === "scaleDefinitions") addScaleDefinitionsLayout(page, count);
+    if (page.variant === "processNotices") addProcessNoticesLayout(page, count);
+    if (page.variant === "iconGridAlert") addIconGridAlertLayout(page, count);
+    if (page.variant === "tableDualNotices") addTableDualNoticesLayout(page, count);
+    if (page.variant === "stepsNotices") addStepsNoticesLayout(page, count);
+    if (page.variant === "conceptNotices") addConceptNoticesLayout(page, count);
   } else {
     if (page.variant === "process") addProcessDiagram(page, count);
     if (page.variant === "timeline") addTimelineDiagram(page, count);
@@ -319,6 +336,134 @@ function addCompareLayout(page, count) {
   }
 }
 
+function addLayoutBanner(page, text, y = 24, h = 12) {
+  page.objects.push(createTextObject("layout-banner", text, 8, y, 84, h, { textAlign: "left" }));
+}
+
+function addResponsiveCards(page, count, role, textFactory, area) {
+  const columns = area.columns || (count <= 4 ? count : 3);
+  const rows = Math.ceil(count / columns);
+  const gapX = area.gapX ?? 2;
+  const gapY = area.gapY ?? 3;
+  const width = (area.w - gapX * (columns - 1)) / columns;
+  const height = (area.h - gapY * (rows - 1)) / rows;
+  for (let index = 0; index < count; index += 1) {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    page.objects.push(createTextObject(
+      role,
+      textFactory(index),
+      area.x + column * (width + gapX),
+      area.y + row * (height + gapY),
+      width,
+      height,
+      { item: true, textAlign: "left", sequence: index }
+    ));
+  }
+}
+
+function addBannerMetricsLayout(page, count) {
+  addLayoutBanner(page, "핵심 안내 문구를 입력하세요", 24, 12);
+  addResponsiveCards(page, count, "metric-card", (index) => `${index + 1}00%\n지표 ${index + 1}\n간단한 설명을 입력하세요`, { x: 8, y: 42, w: 84, h: 42, gapX: 2, gapY: 3 });
+}
+
+function addStepsMediaLayout(page, count) {
+  const cardHeight = count <= 4 ? 25 : 28;
+  addResponsiveCards(page, count, "step-card", (index) => `${String(index + 1).padStart(2, "0")}\n단계 ${index + 1}\n단계 설명을 입력하세요`, { x: 8, y: 25, w: 84, h: cardHeight, gapX: 2, gapY: 2 });
+  page.objects.push(createTextObject("media-placeholder", "이미지 또는 미디어 영역", 8, 58, 84, 27, { textAlign: "center" }));
+}
+
+function addTableStatsLayout(page, count) {
+  page.objects.push({
+    id: createId("table"), type: "table", role: "table", x: 7, y: 25, w: 58, h: 61, item: false,
+    cells: [
+      ["구분", "항목 A", "항목 B"],
+      ["데이터 1", "내용", "내용"],
+      ["데이터 2", "내용", "내용"],
+      ["데이터 3", "내용", "내용"],
+      ["데이터 4", "내용", "내용"]
+    ]
+  });
+  addResponsiveCards(page, count, "stat-card", (index) => `${(index + 1) * 100}\n지표 ${index + 1}\n보조 설명`, { x: 69, y: 25, w: 24, h: 61, columns: 1, gapX: 2, gapY: 2 });
+}
+
+function addMediaFeaturesLayout(page, count) {
+  page.objects.push(createTextObject("media-placeholder", "이미지 또는 화면 영역", 7, 25, 21, 61, { textAlign: "center" }));
+  addResponsiveCards(page, count, "feature-card", (index) => `기능 ${index + 1}\n기능 제목\n설명을 입력하세요`, { x: 32, y: 25, w: 61, h: 61, columns: 2, gapX: 3, gapY: 3 });
+}
+
+function addCompareSummaryLayout(page) {
+  page.objects.push(
+    createTextObject("comparison-panel", "A\n첫 번째 비교 대상\n장점과 특징을 입력하세요", 7, 27, 41, 45, { item: true, textAlign: "left", sequence: 0 }),
+    createTextObject("comparison-panel", "B\n두 번째 비교 대상\n장점과 특징을 입력하세요", 52, 27, 41, 45, { item: true, textAlign: "left", sequence: 1 })
+  );
+  addLayoutBanner(page, "비교 결과 또는 결론을 입력하세요", 77, 11);
+}
+
+function addScaleDefinitionsLayout(page, count) {
+  addLayoutBanner(page, "기준과 범위에 대한 설명을 입력하세요", 21, 11);
+  page.objects.push({ id: createId("scale"), type: "scale", role: "scale-track", x: 10, y: 39, w: 80, h: 8, item: false });
+  const markerSpan = 80 / Math.max(count - 1, 1);
+  for (let index = 0; index < count; index += 1) {
+    const center = count === 1 ? 50 : 10 + markerSpan * index;
+    page.objects.push(createTextObject("scale-marker", `기준 ${index + 1}`, center - 5, 34, 10, 8, { textAlign: "center", sequence: index }));
+  }
+  addResponsiveCards(page, count, "definition-card", (index) => `정의 ${index + 1}\n핵심 개념\n설명을 입력하세요`, { x: 8, y: 53, w: 84, h: 32, gapX: 2, gapY: 2 });
+}
+
+function addProcessNoticesLayout(page, count) {
+  addResponsiveCards(page, count, "process-flow-card", (index) => `STEP ${index + 1}\n절차 ${index + 1}\n간단한 설명`, {
+    x: 4, y: 25, w: 92, h: 28, columns: 7, gapX: 1.2, gapY: 2
+  });
+  page.objects.push(
+    createTextObject("notice-panel", "안내\n참고 정보\n설명을 입력하세요", 5, 58, 44, 16, { textAlign: "left" }),
+    createTextObject("warning-panel", "주의\n확인할 내용\n설명을 입력하세요", 52, 58, 43, 16, { textAlign: "left" }),
+    createTextObject("tip-panel", "TIP\n추가 안내\n설명을 입력하세요", 5, 78, 90, 11, { textAlign: "left" })
+  );
+}
+
+function addIconGridAlertLayout(page, count) {
+  addResponsiveCards(page, count, "icon-info-card", (index) => `ICON ${index + 1}\n항목 ${index + 1}\n설명을 입력하세요`, {
+    x: 5, y: 25, w: 90, h: 52, columns: 3, gapX: 2.5, gapY: 3
+  });
+  page.objects.push(createTextObject("warning-panel", "주의\n전체 안내\n설명을 입력하세요", 5, 81, 90, 10, { textAlign: "left" }));
+}
+
+function addTableDualNoticesLayout(page, count) {
+  page.objects.push({
+    id: createId("table"), type: "table", role: "table", x: 5, y: 24, w: 90, h: 46, item: true,
+    cells: [
+      ["구분", "내용", "설명"],
+      ...Array.from({ length: count }, (_, index) => [`항목 ${index + 1}`, "내용", "설명"])
+    ]
+  });
+  page.objects.push(
+    createTextObject("warning-panel", "주의\n확인할 사항\n설명을 입력하세요", 5, 75, 44, 15, { textAlign: "left" }),
+    createTextObject("notice-panel", "확인\n준비할 사항\n설명을 입력하세요", 52, 75, 43, 15, { textAlign: "left" })
+  );
+}
+
+function addStepsNoticesLayout(page, count) {
+  addResponsiveCards(page, count, "numbered-card", (index) => `${index + 1}\n단계 ${index + 1}\n설명을 입력하세요`, {
+    x: 4, y: 25, w: 92, h: 40, columns: 3, gapX: 2.5, gapY: 2.5
+  });
+  page.objects.push(
+    createTextObject("warning-panel", "주의\n중요 안내\n설명을 입력하세요", 4, 70, 92, 10, { textAlign: "left" }),
+    createTextObject("tip-panel", "TIP\n보조 안내\n설명을 입력하세요", 4, 83, 92, 8, { textAlign: "left" })
+  );
+}
+
+function addConceptNoticesLayout(page, count) {
+  addResponsiveCards(page, count, "concept-card", (index) => `KEY ${index + 1}\n개념 ${index + 1}\n설명을 입력하세요`, {
+    x: 4, y: 25, w: 92, h: 37, columns: 3, gapX: 2.5, gapY: 2.5
+  });
+  page.objects.push(
+    createTextObject("notice-panel", "안내\n첫 번째 보조 정보\n설명을 입력하세요", 4, 66, 46, 14, { textAlign: "left" }),
+    createTextObject("warning-panel", "주의\n두 번째 보조 정보\n설명을 입력하세요", 53, 66, 43, 14, { textAlign: "left" }),
+    createTextObject("tip-panel", "TIP\n전체 안내\n설명을 입력하세요", 4, 84, 92, 8, { textAlign: "left" })
+  );
+}
+
 function addProcessDiagram(page, count) {
   const w = Math.min(18, 75 / count);
   for (let i = 0; i < count; i += 1) {
@@ -372,15 +517,48 @@ function getItemCount(page) {
   if (page.template === "bullet") return page.objects.filter((object) => object.role === "bullet-item").length;
   if (page.template === "mindmap") return page.objects.filter((object) => object.role === "mind-node").length;
   if (page.template === "object") {
-    const table = page.objects.find((object) => object.type === "table");
+    const table = TABLE_LAYOUT_VARIANTS.has(page.variant) ? page.objects.find((object) => object.type === "table") : null;
     if (table) return table.cells.length - 1;
     return page.objects.filter((object) => object.item && object.type !== "image").length;
   }
   return 0;
 }
 
+function getLayoutDefaultCount(variant) {
+  return {
+    cards: 4,
+    cardsAccent: 3,
+    table: 3,
+    compare: 2,
+    bannerMetrics: 4,
+    stepsMedia: 4,
+    tableStats: 3,
+    mediaFeatures: 4,
+    compareSummary: 2,
+    scaleDefinitions: 4,
+    processNotices: 7,
+    iconGridAlert: 6,
+    tableDualNotices: 5,
+    stepsNotices: 3,
+    conceptNotices: 3
+  }[variant] || 3;
+}
+
+function getLayoutMinimumCount(variant) {
+  return ["compare", "compareSummary"].includes(variant) ? 2 : 1;
+}
+
+function getLayoutMaximumCount(variant) {
+  if (variant === "compareSummary") return 2;
+  if (variant === "compare") return 4;
+  if (["bannerMetrics", "stepsMedia", "tableStats", "mediaFeatures", "scaleDefinitions", "stepsNotices", "conceptNotices"].includes(variant)) return 6;
+  if (variant === "processNotices") return 10;
+  if (variant === "iconGridAlert") return 9;
+  return MAX_ITEMS;
+}
+
 function getSelectedActionObject(page) {
-  if (page.template === "object" && page.objectCategory === "layout" && page.variant === "table") {
+  if (page.template === "object" && page.objectCategory === "layout" && TABLE_LAYOUT_VARIANTS.has(page.variant)) {
     return page.objects.find((object) => object.type === "table") || null;
   }
   if (state.selectedIds.size !== 1) return null;
@@ -398,6 +576,7 @@ function canAddItem(page, selected) {
     const columnCount = selected.cells[0]?.length || 0;
     return tableManagementAxis === "column" ? columnCount < MAX_ITEMS : selected.cells.length - 1 < MAX_ITEMS;
   }
+  if (page.template === "object" && page.objectCategory === "layout" && getItemCount(page) >= getLayoutMaximumCount(page.variant)) return false;
   if (getItemCount(page) >= MAX_ITEMS) return false;
   if (page.template === "mindmap") return selected.mindLevel < 4;
   return true;
@@ -411,7 +590,7 @@ function canRemoveItem(page, selected) {
     return tableManagementAxis === "column" ? columnCount > 2 : selected.cells.length > 2;
   }
   if (page.template === "mindmap") return !selected.root;
-  const minimum = page.template === "object" && page.objectCategory === "layout" && page.variant === "compare" ? 2 : MIN_ITEMS;
+  const minimum = page.template === "object" && page.objectCategory === "layout" ? getLayoutMinimumCount(page.variant) : MIN_ITEMS;
   return getItemCount(page) > minimum;
 }
 
@@ -536,7 +715,11 @@ function renderControls() {
   $("#itemSection").hidden = false;
   $("#templateSelect").value = page.template || "";
   $("#objectOptions").hidden = page.template !== "object";
-  $("#layoutVariantSelect").value = page.objectCategory === "layout" ? page.variant : "";
+  document.querySelectorAll("[data-layout-variant]").forEach((button) => {
+    const selected = page.objectCategory === "layout" && button.dataset.layoutVariant === page.variant;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
   $("#diagramVariantSelect").value = page.objectCategory === "diagram" ? page.variant : "";
   const itemCount = getItemCount(page);
   const selected = getSelectedActionObject(page);
@@ -620,10 +803,27 @@ function createObjectElement(object) {
     element.append(image);
   } else if (object.type === "table") {
     element.append(createTableElement(object));
+  } else if (object.type === "scale") {
+    const track = document.createElement("span");
+    track.className = "scale-track-core";
+    element.append(track);
   } else {
     const text = document.createElement("div");
     text.className = `canvas-text ${object.role}`;
-    if (["timeline-node", "side-accent-card"].includes(object.role)) {
+    if (STRUCTURED_LAYOUT_ROLES.has(object.role)) {
+      const [value, heading, ...description] = object.text.split("\n");
+      text.dataset.fitText = object.text;
+      const valueElement = document.createElement("strong");
+      valueElement.className = "structured-card-value";
+      valueElement.textContent = value;
+      const headingElement = document.createElement("span");
+      headingElement.className = "structured-card-heading";
+      headingElement.textContent = heading || "";
+      const descriptionElement = document.createElement("span");
+      descriptionElement.className = "structured-card-description";
+      descriptionElement.textContent = description.join("\n");
+      text.append(valueElement, headingElement, descriptionElement);
+    } else if (["timeline-node", "side-accent-card"].includes(object.role)) {
       const [title, ...description] = object.text.split("\n");
       text.dataset.fitText = object.text;
       const titleElement = document.createElement("strong");
@@ -677,6 +877,7 @@ function applyTextObjectStyle(text, object, wrapper) {
 
 function getObjectClass(object) {
   const classes = [object.role || ""];
+  if (STRUCTURED_LAYOUT_ROLES.has(object.role)) classes.push("structured-layout-card");
   if (object.node) classes.push("node");
   if (object.color) classes.push(object.color);
   if (object.mindLevel) classes.push(`mind-level-${object.mindLevel}`);
@@ -722,7 +923,7 @@ function beginTextEdit(event, object, wrapper, text) {
   renderControls();
   showTextToolbar(object, text);
   wrapper.classList.add("is-editing");
-  if (["timeline-node", "side-accent-card"].includes(object.role)) text.textContent = object.text;
+  if (["timeline-node", "side-accent-card"].includes(object.role) || STRUCTURED_LAYOUT_ROLES.has(object.role)) text.textContent = object.text;
   text.contentEditable = "true";
   text.focus();
   const range = document.createRange();
@@ -1110,8 +1311,40 @@ function clamp(min, value, max) {
 }
 
 function populateVariantSelects() {
-  $("#layoutVariantSelect").innerHTML = '<option value="">선택 안 함</option>' + Object.entries(layouts).map(([value, item]) => `<option value="${value}">${item.name}</option>`).join("");
+  $("#layoutVariantGrid").innerHTML = Object.entries(layouts).map(([value, item]) => `
+    <button class="layout-variant-button" type="button" data-layout-variant="${value}" aria-pressed="false" aria-label="${item.name}">
+      ${getLayoutThumbnailMarkup(value)}
+      <span class="layout-variant-name">${item.name}</span>
+    </button>
+  `).join("");
   $("#diagramVariantSelect").innerHTML = '<option value="">선택 안 함</option>' + Object.entries(diagrams).map(([value, item]) => `<option value="${value}">${item.name}</option>`).join("");
+}
+
+function getLayoutThumbnailMarkup(variant) {
+  const block = '<span></span>';
+  const dark = '<span class="thumb-dark"></span>';
+  const four = `<span class="thumb-row thumb-four">${block.repeat(4)}</span>`;
+  const seven = `<span class="thumb-row thumb-seven">${block.repeat(7)}</span>`;
+  const three = `<span class="thumb-row thumb-three">${block.repeat(3)}</span>`;
+  const two = `<span class="thumb-row thumb-two">${block.repeat(2)}</span>`;
+  const previews = {
+    cards: `<span class="layout-thumbnail cards">${block.repeat(4)}</span>`,
+    cardsAccent: `<span class="layout-thumbnail cards-accent">${block.repeat(3)}</span>`,
+    table: `<span class="layout-thumbnail table-thumb">${block.repeat(4)}</span>`,
+    compare: `<span class="layout-thumbnail">${two}</span>`,
+    bannerMetrics: `<span class="layout-thumbnail banner-metrics">${dark}${four}</span>`,
+    stepsMedia: `<span class="layout-thumbnail steps-media">${four}${dark}</span>`,
+    tableStats: `<span class="layout-thumbnail table-stats"><span class="thumb-table"></span><span class="thumb-row thumb-three-rows">${block.repeat(3)}</span></span>`,
+    mediaFeatures: `<span class="layout-thumbnail media-features">${dark}<span class="thumb-row thumb-two thumb-two-rows">${block.repeat(4)}</span></span>`,
+    compareSummary: `<span class="layout-thumbnail compare-summary">${two}${dark}</span>`,
+    scaleDefinitions: `<span class="layout-thumbnail scale-definitions">${dark}<span class="thumb-scale"></span>${four}</span>`,
+    processNotices: `<span class="layout-thumbnail process-notices">${seven}${two}${block}</span>`,
+    iconGridAlert: `<span class="layout-thumbnail icon-grid-alert"><span class="thumb-row thumb-three thumb-two-rows">${block.repeat(6)}</span>${dark}</span>`,
+    tableDualNotices: `<span class="layout-thumbnail table-dual-notices"><span class="thumb-table"></span>${two}</span>`,
+    stepsNotices: `<span class="layout-thumbnail steps-notices">${three}${dark}${block}</span>`,
+    conceptNotices: `<span class="layout-thumbnail concept-notices">${three}${two}${dark}</span>`
+  };
+  return previews[variant] || `<span class="layout-thumbnail">${block}</span>`;
 }
 
 function serializeProject() {
@@ -1201,6 +1434,14 @@ function suggestedProjectName() {
   return `local-ppt-${timestamp}.txt`;
 }
 
+function getNewImagePlacement(page, index) {
+  if (page.template === "object" && page.objectCategory === "layout") {
+    if (page.variant === "stepsMedia") return { x: 8 + index, y: 58 + index, w: 84 - index * 2, h: 27 - index * 2 };
+    if (page.variant === "mediaFeatures") return { x: 7 + index, y: 25 + index, w: 21, h: 61 - index * 2 };
+  }
+  return { x: 62 + (index % 3) * 5, y: 55 + (index % 3) * 5, w: 25, h: 28 };
+}
+
 async function saveProjectAs() {
   try {
     if (window.showSaveFilePicker) {
@@ -1279,13 +1520,15 @@ $("#templateSelect").addEventListener("change", (event) => {
   render();
 });
 
-$("#layoutVariantSelect").addEventListener("change", (event) => {
-  if (!event.target.value) return;
+$("#layoutVariantGrid").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-layout-variant]");
+  if (!button) return;
   const page = currentPage();
   snapshot();
   page.objectCategory = "layout";
-  page.variant = event.target.value;
-  buildObjectTemplate(page, page.variant === "compare" ? 2 : 3);
+  page.variant = button.dataset.layoutVariant;
+  buildObjectTemplate(page, getLayoutDefaultCount(page.variant));
+  state.selectedIds.clear();
   hideTextToolbar();
   render();
 });
@@ -1339,9 +1582,10 @@ $("#imageInput").addEventListener("change", (event) => {
   files.forEach((file, index) => {
     const reader = new FileReader();
     reader.addEventListener("load", () => {
+      const placement = getNewImagePlacement(targetPage, index);
       targetPage.objects.push({
         id: createId("image"), type: "image", role: "image", src: String(reader.result), name: file.name,
-        x: 62 + (index % 3) * 5, y: 55 + (index % 3) * 5, w: 25, h: 28
+        ...placement
       });
       completed += 1;
       if (completed === files.length) {

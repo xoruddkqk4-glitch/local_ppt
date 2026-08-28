@@ -1,6 +1,17 @@
 window.PptLayouts = {
-  cards: { name: "카드형 그리드", description: "복수 카드를 격자로 배치합니다." },
-  cardsAccent: { name: "카드형 그리드(측면 강조)", description: "세로 강조선과 제목·설명으로 구성된 카드를 격자로 배치합니다." },
+  cards: { name: "카드형 그리드 2×2", description: "복수 카드를 2열 중심의 격자로 배치합니다." },
+  cardsAccent: { name: "측면 강조 카드 1×3", description: "세로 강조선과 제목·설명으로 구성된 카드를 배치합니다." },
   table: { name: "테이블", description: "행과 열로 정보를 비교합니다." },
-  compare: { name: "비교", description: "두 개념 또는 전후 상태를 나란히 보여줍니다." }
+  compare: { name: "비교 패널 1×2", description: "두 개념 또는 전후 상태를 나란히 보여줍니다." },
+  bannerMetrics: { name: "상단 배너 + 지표 카드 1×4", description: "강조 배너 아래에 핵심 지표 카드를 가로로 배치합니다." },
+  stepsMedia: { name: "단계 카드 1×4 + 하단 미디어", description: "단계 카드 아래에 이미지 또는 미디어 영역을 배치합니다." },
+  tableStats: { name: "메인 테이블 + 우측 지표 3×1", description: "넓은 테이블과 세로 지표 카드 영역을 결합합니다." },
+  mediaFeatures: { name: "좌측 미디어 + 기능 카드 2×2", description: "세로 미디어 영역 옆에 기능 카드를 격자로 배치합니다." },
+  compareSummary: { name: "비교 패널 1×2 + 하단 결론", description: "두 비교 패널 아래에 전체 너비의 결론 배너를 둡니다." },
+  scaleDefinitions: { name: "수평 스케일 1×4 + 정의 카드 1×4", description: "수평 기준점과 이에 대응하는 정의 카드를 함께 표시합니다." },
+  processNotices: { name: "프로세스 카드 1×7 + 안내 패널 2×1 + 1×1", description: "가로 프로세스 카드와 두 개의 안내 패널, 전체 너비 안내를 함께 배치합니다." },
+  iconGridAlert: { name: "아이콘 카드 2×3 + 하단 안내 1×1", description: "아이콘 정보 카드를 2행 3열로 배치하고 하단에 전체 안내를 둡니다." },
+  tableDualNotices: { name: "테이블 5×3 + 안내 패널 1×2", description: "3열 테이블 아래에 두 개의 안내 패널을 나란히 배치합니다." },
+  stepsNotices: { name: "단계 카드 1×3 + 하단 안내 2×1", description: "세 개의 단계 카드 아래에 전체 너비 안내 두 개를 쌓아 배치합니다." },
+  conceptNotices: { name: "개념 카드 1×3 + 안내 패널 1×2 + 1×1", description: "세 개의 개념 카드와 두 개의 안내 패널, 하단 전체 안내를 조합합니다." }
 };
