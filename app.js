@@ -2,6 +2,7 @@ const $ = (selector) => document.querySelector(selector);
 const stage = $("#presentationStage");
 const layouts = window.PptLayouts || {};
 const diagrams = window.PptDiagrams || {};
+const charts = window.PptCharts || {};
 const designs = window.PptDesigns || {};
 
 const MAX_HISTORY = 50;
@@ -123,7 +124,7 @@ function buildTemplate(page, template, options = {}) {
 
   if (template === "object") {
     page.objectCategory = options.category || page.objectCategory || "layout";
-    page.variant = options.variant || (page.objectCategory === "layout" ? "cards" : "process");
+    page.variant = options.variant || (page.objectCategory === "layout" ? "cards" : page.objectCategory === "diagram" ? "process" : "column");
     buildObjectTemplate(page, 3);
   }
 }
@@ -282,7 +283,7 @@ function buildObjectTemplate(page, itemCount) {
     if (page.variant === "sideAccentGrid") addSideAccentGridLayout(page, count);
     if (page.variant === "pairedCheckWarnings") addPairedCheckWarningsLayout(page, count);
     if (page.variant === "detailMetrics") addDetailMetricsLayout(page, count);
-  } else {
+  } else if (page.objectCategory === "diagram") {
     if (page.variant === "process") addProcessDiagram(page, count);
     if (page.variant === "timeline") addTimelineDiagram(page, count);
     if (page.variant === "pyramid") addPyramidDiagram(page, count);
@@ -295,11 +296,13 @@ function buildObjectTemplate(page, itemCount) {
     if (page.variant === "connectedCircles") addConnectedCirclesDiagram(page, count);
     if (page.variant === "quadrant") addQuadrantDiagram(page);
     if (page.variant === "vs") addVsDiagram(page);
+  } else if (page.objectCategory === "chart") {
+    addChart(page, page.variant);
   }
 }
 
 function getVariantTitle(page) {
-  const collection = page.objectCategory === "layout" ? layouts : diagrams;
+  const collection = page.objectCategory === "layout" ? layouts : page.objectCategory === "diagram" ? diagrams : charts;
   return collection[page.variant]?.name?.toUpperCase() || "OBJECT PAGE";
 }
 
@@ -703,11 +706,62 @@ function addVsDiagram(page) {
   );
 }
 
+const CHART_DEFAULT_DATA = {
+  column: [["1분기", 42], ["2분기", 68], ["3분기", 55], ["4분기", 82], ["5분기", 64]],
+  line: [["1월", 28], ["2월", 44], ["3월", 39], ["4월", 72], ["5월", 66], ["6월", 88]],
+  pie: [["제품 A", 38], ["제품 B", 27], ["제품 C", 21], ["기타", 14]],
+  bar: [["항목 A", 78], ["항목 B", 62], ["항목 C", 49], ["항목 D", 35], ["항목 E", 24]],
+  area: [["1월", 22], ["2월", 36], ["3월", 31], ["4월", 58], ["5월", 74], ["6월", 69]]
+};
+const CHART_MIN_ITEMS = 2;
+const CHART_MAX_ITEMS = 8;
+
+function addChart(page, variant) {
+  const source = CHART_DEFAULT_DATA[variant] || CHART_DEFAULT_DATA.column;
+  page.objects.push({
+    id: createId("chart"),
+    type: "chart",
+    role: `chart-${variant}`,
+    chartType: variant,
+    data: source.map(([label, value]) => ({ label, value })),
+    x: 7,
+    y: 25,
+    w: 86,
+    h: 68,
+    item: false
+  });
+}
+
+function getChartData(object) {
+  const fallback = CHART_DEFAULT_DATA[object.chartType] || CHART_DEFAULT_DATA.column;
+  const source = Array.isArray(object.data) && object.data.length ? object.data : fallback.map(([label, value]) => ({ label, value }));
+  return source.map((item, index) => ({
+    label: String(item?.label || `항목 ${index + 1}`),
+    value: Math.max(0, Number(item?.value) || 0)
+  }));
+}
+
+function createNextChartDataItem(object) {
+  const data = getChartData(object);
+  const number = data.length + 1;
+  const label = ["line", "area"].includes(object.chartType)
+    ? `${number}월`
+    : object.chartType === "column"
+      ? `${number}분기`
+      : `항목 ${number}`;
+  const average = Math.round(data.reduce((sum, item) => sum + item.value, 0) / Math.max(data.length, 1));
+  return { label, value: average };
+}
+
 function getItemCount(page) {
   if (page.type === "cover") return coverItems(page).length;
   if (page.template === "bullet") return page.objects.filter((object) => object.role === "bullet-item").length;
   if (page.template === "mindmap") return page.objects.filter((object) => object.role === "mind-node").length;
   if (page.template === "object") {
+    if (page.objectCategory === "chart") {
+      const chart = page.objects.find((object) => object.type === "chart");
+      return chart ? getChartData(chart).length : 0;
+    }
     const table = TABLE_LAYOUT_VARIANTS.has(page.variant) ? page.objects.find((object) => object.type === "table") : null;
     if (table) return table.cells.length - 1;
     const countRole = ITEM_COUNT_ROLE_BY_VARIANT[page.variant];
@@ -802,6 +856,9 @@ function getDiagramMaximumCount(variant) {
 }
 
 function getSelectedActionObject(page) {
+  if (page.template === "object" && page.objectCategory === "chart") {
+    return page.objects.find((object) => object.type === "chart") || null;
+  }
   if (page.template === "object" && page.objectCategory === "layout" && TABLE_LAYOUT_VARIANTS.has(page.variant)) {
     return page.objects.find((object) => object.type === "table") || null;
   }
@@ -816,6 +873,7 @@ function getSelectedActionObject(page) {
 function canAddItem(page, selected) {
   if (page.type === "cover") return getItemCount(page) < MAX_ITEMS;
   if (!selected) return false;
+  if (selected.type === "chart") return getChartData(selected).length < CHART_MAX_ITEMS;
   if (selected.type === "table") {
     const columnCount = selected.cells[0]?.length || 0;
     return tableManagementAxis === "column" ? columnCount < MAX_ITEMS : selected.cells.length - 1 < MAX_ITEMS;
@@ -830,6 +888,7 @@ function canAddItem(page, selected) {
 function canRemoveItem(page, selected) {
   if (!selected) return false;
   if (page.type === "cover") return true;
+  if (selected.type === "chart") return getChartData(selected).length > CHART_MIN_ITEMS;
   if (selected.type === "table") {
     const columnCount = selected.cells[0]?.length || 0;
     return tableManagementAxis === "column" ? columnCount > 2 : selected.cells.length > 2;
@@ -867,6 +926,9 @@ function addItem() {
     positionNewMindmapNode(page, selected, item);
     page.objects.push(item);
     state.selectedIds = new Set([item.id]);
+  } else if (selected.type === "chart") {
+    selected.data = getChartData(selected);
+    selected.data.push(createNextChartDataItem(selected));
   } else if (selected.type === "table") {
     if (tableManagementAxis === "column") {
       selected.cells.forEach((row, index) => row.push(index === 0 ? `열 ${row.length + 1}` : "내용"));
@@ -910,6 +972,9 @@ function removeItem() {
     }
     page.objects = page.objects.filter((object) => !deletedIds.has(object.id));
     state.selectedIds = selected.parentId ? new Set([selected.parentId]) : new Set();
+  } else if (selected.type === "chart") {
+    selected.data = getChartData(selected);
+    selected.data.pop();
   } else if (selected.type === "table") {
     if (tableManagementAxis === "column") selected.cells.forEach((row) => row.pop());
     else selected.cells.pop();
@@ -980,21 +1045,32 @@ function renderControls() {
   $("#diagramVariantCurrent").textContent = page.objectCategory === "diagram"
     ? diagrams[page.variant]?.name || "다이어그램 선택"
     : "다이어그램 선택";
+  document.querySelectorAll("[data-chart-variant]").forEach((button) => {
+    const selected = page.objectCategory === "chart" && button.dataset.chartVariant === page.variant;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  $("#chartVariantCurrent").textContent = page.objectCategory === "chart"
+    ? charts[page.variant]?.name || "차트 선택"
+    : "차트 선택";
   const itemCount = getItemCount(page);
   const selected = getSelectedActionObject(page);
   const selectedTable = selected?.type === "table" ? selected : null;
+  const selectedChart = selected?.type === "chart" ? selected : null;
+  const isChart = page.objectCategory === "chart";
   $("#tableAxisLabel").hidden = !selectedTable;
   $("#tableAxisSelect").value = tableManagementAxis;
   $("#addItemButton").disabled = (!isCover && !page.template) || !canAddItem(page, selected);
   $("#removeItemButton").disabled = (!isCover && !page.template) || !canRemoveItem(page, selected);
-  $("#addItemButton").textContent = selectedTable ? `+ ${tableManagementAxis === "column" ? "열" : "행"}` : "+ 항목";
-  $("#removeItemButton").textContent = selectedTable ? `− ${tableManagementAxis === "column" ? "열" : "행"}` : "− 항목";
+  $("#addItemButton").textContent = selectedChart ? "+ 데이터" : selectedTable ? `+ ${tableManagementAxis === "column" ? "열" : "행"}` : "+ 항목";
+  $("#removeItemButton").textContent = selectedChart ? "− 데이터" : selectedTable ? `− ${tableManagementAxis === "column" ? "열" : "행"}` : "− 항목";
   $("#itemHint").textContent = isCover
     ? selected ? `현재 ${selected.bulletLevel || 1}단계 선택 · Tab: 하위 위계 · Shift+Tab: 상위 위계` : "표지에 필요한 항목을 추가할 수 있습니다. 항목 선택 후 Tab/Shift+Tab으로 위계를 조정하세요."
     : page.template === "mindmap"
       ? selected ? `현재 ${selected.mindLevel}단계 선택 · +는 하위 항목 추가, −는 선택 가지 삭제` : `현재 항목 ${itemCount}개 · 추가하거나 삭제할 개체를 먼저 선택하세요.`
       : page.template === "bullet"
         ? selected ? `현재 ${selected.bulletLevel || 1}단계 선택 · Tab: 하위 위계 · Shift+Tab: 상위 위계` : `현재 항목 ${itemCount}개 · 항목을 선택한 뒤 Tab 또는 Shift+Tab으로 위계를 조정하세요.`
+        : isChart ? `데이터 ${itemCount}개 · 2~8개까지 추가·삭제하고 숫자를 수정할 수 있습니다.`
         : selectedTable ? `테이블 ${tableManagementAxis === "column" ? "열" : "행"}을 관리합니다. 위 선택에서 대상을 바꿀 수 있습니다.`
         : page.template ? `현재 항목 ${itemCount}개 · 추가하거나 삭제할 항목 개체를 먼저 선택하세요.` : "본문 템플릿을 먼저 선택하세요.";
 }
@@ -1062,6 +1138,8 @@ function createObjectElement(object) {
     element.append(image);
   } else if (object.type === "table") {
     element.append(createTableElement(object));
+  } else if (object.type === "chart") {
+    element.append(createChartElement(object));
   } else if (object.type === "scale") {
     const track = document.createElement("span");
     track.className = "scale-track-core";
@@ -1172,6 +1250,169 @@ function createTableElement(object) {
   return table;
 }
 
+function createChartElement(object) {
+  object.data = getChartData(object);
+  const chart = document.createElement("div");
+  chart.className = `chart-object chart-object-${object.chartType}`;
+  const graphic = document.createElement("div");
+  graphic.className = "chart-graphic";
+  renderChartGraphic(graphic, object);
+
+  const editor = document.createElement("div");
+  editor.className = "chart-data-editor";
+  object.data.forEach((item, index) => {
+    const label = document.createElement("label");
+    label.className = "chart-data-field";
+    const name = document.createElement("span");
+    name.textContent = item.label;
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.max = "1000000";
+    input.step = "1";
+    input.value = String(item.value);
+    input.setAttribute("aria-label", `${item.label} 값`);
+    let snapshotted = false;
+    input.addEventListener("pointerdown", (event) => event.stopPropagation());
+    input.addEventListener("click", (event) => event.stopPropagation());
+    input.addEventListener("input", () => {
+      if (!snapshotted) {
+        snapshot();
+        snapshotted = true;
+      }
+      object.data[index].value = Math.max(0, Math.min(1000000, Number(input.value) || 0));
+      renderChartGraphic(graphic, object);
+    });
+    input.addEventListener("blur", () => {
+      input.value = String(object.data[index].value);
+      snapshotted = false;
+    });
+    label.append(name, input);
+    editor.append(label);
+  });
+  chart.append(graphic, editor);
+  return chart;
+}
+
+function renderChartGraphic(container, object) {
+  container.innerHTML = "";
+  const data = getChartData(object);
+  if (["line", "area"].includes(object.chartType)) renderLineChart(container, data, object.chartType === "area");
+  else if (object.chartType === "pie") renderPieChart(container, data);
+  else if (object.chartType === "bar") renderHorizontalBarChart(container, data);
+  else renderColumnChart(container, data);
+}
+
+function renderColumnChart(container, data) {
+  const max = Math.max(...data.map((item) => item.value), 1);
+  const plot = document.createElement("div");
+  plot.className = "column-chart-plot";
+  data.forEach((item) => {
+    const column = document.createElement("div");
+    column.className = "column-chart-item";
+    const value = document.createElement("strong");
+    value.textContent = item.value.toLocaleString();
+    const track = document.createElement("div");
+    track.className = "column-chart-track";
+    const bar = document.createElement("span");
+    bar.style.height = `${item.value / max * 100}%`;
+    track.append(bar);
+    const label = document.createElement("small");
+    label.textContent = item.label;
+    column.append(value, track, label);
+    plot.append(column);
+  });
+  container.append(plot);
+}
+
+function renderHorizontalBarChart(container, data) {
+  const max = Math.max(...data.map((item) => item.value), 1);
+  const plot = document.createElement("div");
+  plot.className = "bar-chart-plot";
+  data.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "bar-chart-row";
+    const label = document.createElement("span");
+    label.textContent = item.label;
+    const track = document.createElement("div");
+    track.className = "bar-chart-track";
+    const bar = document.createElement("i");
+    bar.style.width = `${item.value / max * 100}%`;
+    const value = document.createElement("strong");
+    value.textContent = item.value.toLocaleString();
+    track.append(bar, value);
+    row.append(label, track);
+    plot.append(row);
+  });
+  container.append(plot);
+}
+
+function createSvgElement(name, attributes = {}) {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+  Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+  return element;
+}
+
+function renderLineChart(container, data, filled) {
+  const svg = createSvgElement("svg", { viewBox: "0 0 100 64", preserveAspectRatio: "none", "aria-hidden": "true" });
+  svg.classList.add("line-chart-svg");
+  const max = Math.max(...data.map((item) => item.value), 1);
+  [12, 25, 38, 51].forEach((y) => svg.append(createSvgElement("line", { x1: 7, y1: y, x2: 95, y2: y, class: "chart-grid-line" })));
+  const points = data.map((item, index) => ({
+    x: data.length === 1 ? 50 : 8 + index * 86 / (data.length - 1),
+    y: 51 - item.value / max * 39,
+    item
+  }));
+  if (filled) {
+    const polygon = createSvgElement("polygon", { points: `8,51 ${points.map((point) => `${point.x},${point.y}`).join(" ")} 94,51`, class: "chart-area-fill" });
+    svg.append(polygon);
+  }
+  svg.append(createSvgElement("polyline", { points: points.map((point) => `${point.x},${point.y}`).join(" "), class: "chart-series-line" }));
+  points.forEach((point) => {
+    svg.append(createSvgElement("circle", { cx: point.x, cy: point.y, r: 1.8, class: "chart-point" }));
+    const value = createSvgElement("text", { x: point.x, y: Math.max(7, point.y - 3), class: "chart-svg-value", "text-anchor": "middle" });
+    value.textContent = point.item.value.toLocaleString();
+    const label = createSvgElement("text", { x: point.x, y: 60, class: "chart-svg-label", "text-anchor": "middle" });
+    label.textContent = point.item.label;
+    svg.append(value, label);
+  });
+  container.append(svg);
+}
+
+function renderPieChart(container, data) {
+  const colors = ["#2b74ff", "#ef7f7a", "#f0c843", "#6f9f7b", "#8d72c7", "#56a9a6"];
+  const total = Math.max(data.reduce((sum, item) => sum + item.value, 0), 1);
+  let cursor = 0;
+  const slices = data.map((item, index) => {
+    const start = cursor;
+    cursor += item.value / total * 360;
+    return `${colors[index % colors.length]} ${start}deg ${cursor}deg`;
+  });
+  const layout = document.createElement("div");
+  layout.className = "pie-chart-layout";
+  const pie = document.createElement("div");
+  pie.className = "pie-chart-disc";
+  pie.style.background = `conic-gradient(${slices.join(",")})`;
+  const center = document.createElement("strong");
+  center.textContent = total.toLocaleString();
+  pie.append(center);
+  const legend = document.createElement("div");
+  legend.className = "pie-chart-legend";
+  data.forEach((item, index) => {
+    const row = document.createElement("div");
+    const swatch = document.createElement("i");
+    swatch.style.background = colors[index % colors.length];
+    const label = document.createElement("span");
+    label.textContent = item.label;
+    const value = document.createElement("strong");
+    value.textContent = `${Math.round(item.value / total * 100)}%`;
+    row.append(swatch, label, value);
+    legend.append(row);
+  });
+  layout.append(pie, legend);
+  container.append(layout);
+}
+
 function beginTextEdit(event, object, wrapper, text) {
   if (document.fullscreenElement) return;
   event.preventDefault();
@@ -1265,7 +1506,7 @@ function beginCellEdit(event, object, rowIndex, columnIndex, cell) {
 }
 
 function beginDrag(event, object) {
-  if (event.button !== 0 || event.target.classList.contains("resize-handle") || event.target.isContentEditable || document.fullscreenElement) return;
+  if (event.button !== 0 || event.target.classList.contains("resize-handle") || isTextInputTarget(event.target) || document.fullscreenElement) return;
   event.preventDefault();
   stage.focus({ preventScroll: true });
   hideTextToolbar();
@@ -1590,6 +1831,12 @@ function populateVariantSelects() {
       <span class="layout-variant-name">${item.name}</span>
     </button>
   `).join("");
+  $("#chartVariantGrid").innerHTML = Object.entries(charts).map(([value, item]) => `
+    <button class="layout-variant-button" type="button" data-chart-variant="${value}" aria-pressed="false" aria-label="${item.name}">
+      ${getChartThumbnailMarkup(value)}
+      <span class="layout-variant-name">${item.name}</span>
+    </button>
+  `).join("");
 }
 
 function getLayoutThumbnailMarkup(variant) {
@@ -1641,6 +1888,18 @@ function getDiagramThumbnailMarkup(variant) {
     vs: `<span class="diagram-thumbnail vs-thumb">${node}<b>VS</b>${node}</span>`
   };
   return previews[variant] || `<span class="diagram-thumbnail">${node}</span>`;
+}
+
+function getChartThumbnailMarkup(variant) {
+  const bars = '<i></i><i></i><i></i><i></i><i></i>';
+  const previews = {
+    column: `<span class="chart-thumbnail chart-thumb-column">${bars}</span>`,
+    line: '<span class="chart-thumbnail chart-thumb-line"><svg viewBox="0 0 100 50" aria-hidden="true"><polyline points="5,39 27,25 48,30 70,11 95,18"></polyline></svg></span>',
+    pie: '<span class="chart-thumbnail chart-thumb-pie"><i></i></span>',
+    bar: `<span class="chart-thumbnail chart-thumb-bar">${bars}</span>`,
+    area: '<span class="chart-thumbnail chart-thumb-area"><svg viewBox="0 0 100 50" aria-hidden="true"><polygon points="5,43 5,35 27,25 48,30 70,11 95,18 95,43"></polygon><polyline points="5,35 27,25 48,30 70,11 95,18"></polyline></svg></span>'
+  };
+  return previews[variant] || previews.column;
 }
 
 function serializeProject() {
@@ -1857,6 +2116,28 @@ $("#diagramVariantToggle").addEventListener("click", () => {
   const expanded = toggle.getAttribute("aria-expanded") !== "true";
   toggle.setAttribute("aria-expanded", String(expanded));
   toggle.setAttribute("aria-label", expanded ? "다이어그램 목록 접기" : "다이어그램 목록 펼치기");
+  grid.hidden = !expanded;
+});
+
+$("#chartVariantGrid").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-chart-variant]");
+  if (!button) return;
+  const page = currentPage();
+  snapshot();
+  page.objectCategory = "chart";
+  page.variant = button.dataset.chartVariant;
+  buildObjectTemplate(page, 1);
+  state.selectedIds.clear();
+  hideTextToolbar();
+  render();
+});
+
+$("#chartVariantToggle").addEventListener("click", () => {
+  const toggle = $("#chartVariantToggle");
+  const grid = $("#chartVariantGrid");
+  const expanded = toggle.getAttribute("aria-expanded") !== "true";
+  toggle.setAttribute("aria-expanded", String(expanded));
+  toggle.setAttribute("aria-label", expanded ? "차트 목록 접기" : "차트 목록 펼치기");
   grid.hidden = !expanded;
 });
 

@@ -6,7 +6,7 @@
   <title>Local ppt</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
-  <link rel="stylesheet" href="style.css?v=20260828-copy1">
+  <link rel="stylesheet" href="style.css?v=20260828-charts1">
 </head>
 <body data-design="bauhaus">
   <header class="app-header">
@@ -82,6 +82,18 @@
             </div>
             <div id="diagramVariantGrid" class="layout-variant-grid diagram-variant-grid" role="group" aria-label="다이어그램 선택" hidden></div>
           </div>
+          <div id="chartVariantSection" class="chart-variant-section">
+            <div class="layout-variant-header">
+              <div class="layout-variant-heading">
+                <strong class="option-group-title">차트 및 그래프</strong>
+                <span id="chartVariantCurrent" class="layout-variant-current">차트 선택</span>
+              </div>
+              <button id="chartVariantToggle" class="layout-variant-toggle" type="button" aria-expanded="false" aria-controls="chartVariantGrid" aria-label="차트 목록 펼치기">
+                <span class="layout-toggle-chevron" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div id="chartVariantGrid" class="layout-variant-grid chart-variant-grid" role="group" aria-label="차트 및 그래프 선택" hidden></div>
+          </div>
         </div>
       </section>
 
@@ -126,10 +138,11 @@
       <div id="presentationStage" class="presentation-stage" tabindex="0" aria-label="현재 페이지 캔버스"></div>
     </section>
   </main>
-  <script src="templates/schema.js?v=20260828-copy1"></script>
-  <script src="designs/options.js?v=20260828-copy1"></script>
-  <script src="layouts/options.js?v=20260828-copy1"></script>
-  <script src="diagrams/options.js?v=20260828-copy1"></script>
-  <script src="app.js?v=20260828-copy1"></script>
+  <script src="templates/schema.js?v=20260828-charts1"></script>
+  <script src="designs/options.js?v=20260828-charts1"></script>
+  <script src="layouts/options.js?v=20260828-charts1"></script>
+  <script src="diagrams/options.js?v=20260828-charts1"></script>
+  <script src="charts/options.js?v=20260828-charts1"></script>
+  <script src="app.js?v=20260828-charts2"></script>
 </body>
 </html>
