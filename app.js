@@ -15,6 +15,7 @@ const PROJECT_PICKER_ID = "local-ppt-project";
 
 let currentProjectFileHandle = null;
 let currentProjectFileName = "local-ppt.txt";
+let tableManagementAxis = "row";
 
 const state = {
   design: "bauhaus",
@@ -97,9 +98,9 @@ function buildTemplate(page, template, options = {}) {
   if (template === "bullet") {
     page.objects.unshift(
       createTextObject("page-title", "핵심 메시지", 8, 10, 72, 18),
-      createTextObject("bullet-item", "첫 번째 핵심 내용", 12, 0, 75, 9, { item: true }),
-      createTextObject("bullet-item", "두 번째 핵심 내용", 12, 0, 75, 9, { item: true }),
-      createTextObject("bullet-item", "세 번째 핵심 내용", 12, 0, 75, 9, { item: true })
+      createTextObject("bullet-item", "첫 번째 핵심 내용", 12, 0, 75, 9, { item: true, bulletLevel: 1 }),
+      createTextObject("bullet-item", "두 번째 핵심 내용", 12, 0, 75, 9, { item: true, bulletLevel: 1 }),
+      createTextObject("bullet-item", "세 번째 핵심 내용", 12, 0, 75, 9, { item: true, bulletLevel: 1 })
     );
     layoutBulletItems(page);
   }
@@ -123,10 +124,27 @@ function layoutBulletItems(page) {
   const gap = items.length > 10 ? .5 : items.length > 8 ? 1 : 2;
   const height = clamp(4, (bottom - top - gap * (items.length - 1)) / items.length, 10);
   items.forEach((item, index) => {
-    item.x = 12;
+    const level = clamp(1, Number(item.bulletLevel) || 1, 4);
+    item.bulletLevel = level;
+    item.x = 12 + (level - 1) * 6;
     item.y = top + index * (height + gap);
-    item.w = 75;
+    item.w = 75 - (level - 1) * 6;
     item.h = height;
+  });
+}
+
+function coverItems(page) {
+  return page.objects.filter((object) => object.role === "cover-item");
+}
+
+function layoutCoverItems(page) {
+  coverItems(page).forEach((item, index) => {
+    const level = clamp(1, Number(item.bulletLevel) || 1, 4);
+    item.bulletLevel = level;
+    item.x = 18 + (level - 1) * 6;
+    item.y = 70 + index * 7;
+    item.w = 64 - (level - 1) * 6;
+    item.h = 5.5;
   });
 }
 
@@ -153,6 +171,36 @@ function createDefaultMindmap(page) {
 function createMindNode(text, parentId, mindLevel) {
   return createTextObject("mind-node", text, 0, 0, 12, 10, {
     item: true, node: true, parentId, mindLevel
+  });
+}
+
+function positionNewMindmapNode(page, parent, node) {
+  const specs = {
+    2: { radiusX: 23, radiusY: 19, w: 17, h: 14 },
+    3: { radiusX: 34, radiusY: 29, w: 14, h: 11 },
+    4: { radiusX: 44, radiusY: 38, w: 11, h: 9 }
+  };
+  const level = Math.min(4, parent.mindLevel + 1);
+  const spec = specs[level];
+  const siblings = page.objects.filter((object) => object.role === "mind-node" && object.parentId === parent.id);
+  const offsets = parent.root
+    ? [-Math.PI / 2, Math.PI / 2, -Math.PI / 4, Math.PI / 4, -3 * Math.PI / 4, 3 * Math.PI / 4, 0, Math.PI]
+    : [0, .9, -.9, 1.8, -1.8, 2.5, -2.5, Math.PI];
+  const parentAngle = Number.isFinite(parent.mindAngle) ? parent.mindAngle : 0;
+  const usedAngles = siblings.map((sibling) => Number.isFinite(sibling.mindAngle) ? sibling.mindAngle : 0);
+  const angularDistance = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+  const angle = offsets
+    .map((offset) => parent.root ? offset : parentAngle + offset)
+    .sort((a, b) => Math.min(...usedAngles.map((used) => angularDistance(b, used))) - Math.min(...usedAngles.map((used) => angularDistance(a, used))))[0];
+  const centerX = 50;
+  const centerY = 52;
+  Object.assign(node, {
+    mindLevel: level,
+    mindAngle: angle,
+    x: centerX + Math.cos(angle) * spec.radiusX - spec.w / 2,
+    y: centerY + Math.sin(angle) * spec.radiusY - spec.h / 2,
+    w: spec.w,
+    h: spec.h
   });
 }
 
@@ -304,7 +352,7 @@ function addPyramidDiagram(page, count) {
   const height = Math.min(13, 58 / count);
   for (let i = 0; i < count; i += 1) {
     const w = 28 + (i * 7);
-    page.objects.push(createTextObject("pyramid-level", `단계 ${i + 1}`, 50 - w / 2, 28 + i * (height + 2), w, height, { item: true }));
+    page.objects.push(createTextObject("pyramid-level", `단계 ${i + 1}`, 50 - w / 2, 28 + i * (height + 2), w, height, { item: true, pyramidApex: i === 0 }));
   }
 }
 
@@ -320,6 +368,7 @@ function addCycleDiagram(page, count) {
 }
 
 function getItemCount(page) {
+  if (page.type === "cover") return coverItems(page).length;
   if (page.template === "bullet") return page.objects.filter((object) => object.role === "bullet-item").length;
   if (page.template === "mindmap") return page.objects.filter((object) => object.role === "mind-node").length;
   if (page.template === "object") {
@@ -331,21 +380,36 @@ function getItemCount(page) {
 }
 
 function getSelectedActionObject(page) {
+  if (page.template === "object" && page.objectCategory === "layout" && page.variant === "table") {
+    return page.objects.find((object) => object.type === "table") || null;
+  }
   if (state.selectedIds.size !== 1) return null;
   const selected = page.objects.find((object) => state.selectedIds.has(object.id));
   if (!selected) return null;
+  if (page.type === "cover") return selected.role === "cover-item" ? selected : null;
   if (page.template === "mindmap") return selected.root || selected.role === "mind-node" ? selected : null;
   return selected.item ? selected : null;
 }
 
 function canAddItem(page, selected) {
-  if (!selected || getItemCount(page) >= MAX_ITEMS) return false;
+  if (page.type === "cover") return getItemCount(page) < MAX_ITEMS;
+  if (!selected) return false;
+  if (selected.type === "table") {
+    const columnCount = selected.cells[0]?.length || 0;
+    return tableManagementAxis === "column" ? columnCount < MAX_ITEMS : selected.cells.length - 1 < MAX_ITEMS;
+  }
+  if (getItemCount(page) >= MAX_ITEMS) return false;
   if (page.template === "mindmap") return selected.mindLevel < 4;
   return true;
 }
 
 function canRemoveItem(page, selected) {
   if (!selected) return false;
+  if (page.type === "cover") return true;
+  if (selected.type === "table") {
+    const columnCount = selected.cells[0]?.length || 0;
+    return tableManagementAxis === "column" ? columnCount > 2 : selected.cells.length > 2;
+  }
   if (page.template === "mindmap") return !selected.root;
   const minimum = page.template === "object" && page.objectCategory === "layout" && page.variant === "compare" ? 2 : MIN_ITEMS;
   return getItemCount(page) > minimum;
@@ -353,23 +417,34 @@ function canRemoveItem(page, selected) {
 
 function addItem() {
   const page = currentPage();
-  if (page.type !== "content" || !page.template) return;
+  if (page.type !== "cover" && (page.type !== "content" || !page.template)) return;
   const count = getItemCount(page);
   const selected = getSelectedActionObject(page);
   if (!canAddItem(page, selected)) return;
   snapshot();
 
-  if (page.template === "bullet") {
-    const item = createTextObject("bullet-item", `새 핵심 내용 ${count + 1}`, 12, 0, 75, 9, { item: true });
+  if (page.type === "cover") {
+    const item = createTextObject("cover-item", `추가 항목 ${count + 1}`, 18, 0, 64, 5.5, { item: true, bulletLevel: 1 });
+    page.objects.push(item);
+    layoutCoverItems(page);
+    state.selectedIds = new Set([item.id]);
+  } else if (page.template === "bullet") {
+    const item = createTextObject("bullet-item", `새 핵심 내용 ${count + 1}`, 12, 0, 75, 9, { item: true, bulletLevel: selected.bulletLevel || 1 });
     page.objects.splice(page.objects.indexOf(selected) + 1, 0, item);
     layoutBulletItems(page);
     state.selectedIds = new Set([item.id]);
   } else if (page.template === "mindmap") {
     const childCount = page.objects.filter((object) => object.parentId === selected.id).length;
     const item = createMindNode(`하위 항목 ${childCount + 1}`, selected.id, selected.mindLevel + 1);
+    positionNewMindmapNode(page, selected, item);
     page.objects.push(item);
-    layoutMindmapTree(page);
     state.selectedIds = new Set([item.id]);
+  } else if (selected.type === "table") {
+    if (tableManagementAxis === "column") {
+      selected.cells.forEach((row, index) => row.push(index === 0 ? `열 ${row.length + 1}` : "내용"));
+    } else {
+      selected.cells.push(selected.cells[0].map((_, index) => index === 0 ? `항목 ${selected.cells.length}` : "내용"));
+    }
   } else {
     buildObjectTemplate(page, count + 1);
     state.selectedIds.clear();
@@ -382,10 +457,14 @@ function removeItem() {
   const page = currentPage();
   const count = getItemCount(page);
   const selected = getSelectedActionObject(page);
-  if (page.type !== "content" || !canRemoveItem(page, selected)) return;
+  if ((page.type !== "cover" && page.type !== "content") || !canRemoveItem(page, selected)) return;
   snapshot();
 
-  if (page.template === "bullet") {
+  if (page.type === "cover") {
+    page.objects = page.objects.filter((object) => object.id !== selected.id);
+    layoutCoverItems(page);
+    state.selectedIds.clear();
+  } else if (page.template === "bullet") {
     page.objects = page.objects.filter((object) => object.id !== selected.id);
     layoutBulletItems(page);
     state.selectedIds.clear();
@@ -402,14 +481,40 @@ function removeItem() {
       });
     }
     page.objects = page.objects.filter((object) => !deletedIds.has(object.id));
-    layoutMindmapTree(page);
     state.selectedIds = selected.parentId ? new Set([selected.parentId]) : new Set();
+  } else if (selected.type === "table") {
+    if (tableManagementAxis === "column") selected.cells.forEach((row) => row.pop());
+    else selected.cells.pop();
   } else {
     buildObjectTemplate(page, count - 1);
     state.selectedIds.clear();
   }
   hideTextToolbar();
   render();
+}
+
+function changeSelectedBulletHierarchy(direction) {
+  const page = currentPage();
+  const selected = getSelectedActionObject(page);
+  if (!(page.template === "bullet" || page.type === "cover") || !selected) return false;
+  const items = page.type === "cover" ? coverItems(page) : page.objects.filter((object) => object.role === "bullet-item");
+  const index = items.indexOf(selected);
+  const currentLevel = clamp(1, Number(selected.bulletLevel) || 1, 4);
+  if (direction > 0) {
+    if (index === 0) return false;
+    const previousLevel = clamp(1, Number(items[index - 1].bulletLevel) || 1, 4);
+    if (currentLevel >= Math.min(4, previousLevel + 1)) return false;
+    snapshot();
+    selected.bulletLevel = currentLevel + 1;
+  } else {
+    if (currentLevel === 1) return false;
+    snapshot();
+    selected.bulletLevel = currentLevel - 1;
+  }
+  if (page.type === "cover") layoutCoverItems(page);
+  else layoutBulletItems(page);
+  render();
+  return true;
 }
 
 function render() {
@@ -435,13 +540,21 @@ function renderControls() {
   $("#diagramVariantSelect").value = page.objectCategory === "diagram" ? page.variant : "";
   const itemCount = getItemCount(page);
   const selected = getSelectedActionObject(page);
-  $("#addItemButton").disabled = isCover || !page.template || !canAddItem(page, selected);
-  $("#removeItemButton").disabled = isCover || !page.template || !canRemoveItem(page, selected);
+  const selectedTable = selected?.type === "table" ? selected : null;
+  $("#tableAxisLabel").hidden = !selectedTable;
+  $("#tableAxisSelect").value = tableManagementAxis;
+  $("#addItemButton").disabled = (!isCover && !page.template) || !canAddItem(page, selected);
+  $("#removeItemButton").disabled = (!isCover && !page.template) || !canRemoveItem(page, selected);
+  $("#addItemButton").textContent = selectedTable ? `+ ${tableManagementAxis === "column" ? "열" : "행"}` : "+ 항목";
+  $("#removeItemButton").textContent = selectedTable ? `− ${tableManagementAxis === "column" ? "열" : "행"}` : "− 항목";
   $("#itemHint").textContent = isCover
-    ? "표지 텍스트를 더블클릭해 수정하세요. 이미지도 여러 개 추가할 수 있습니다."
+    ? selected ? `현재 ${selected.bulletLevel || 1}단계 선택 · Tab: 하위 위계 · Shift+Tab: 상위 위계` : "표지에 필요한 항목을 추가할 수 있습니다. 항목 선택 후 Tab/Shift+Tab으로 위계를 조정하세요."
     : page.template === "mindmap"
       ? selected ? `현재 ${selected.mindLevel}단계 선택 · +는 하위 항목 추가, −는 선택 가지 삭제` : `현재 항목 ${itemCount}개 · 추가하거나 삭제할 개체를 먼저 선택하세요.`
-      : page.template ? `현재 항목 ${itemCount}개 · 추가하거나 삭제할 항목 개체를 먼저 선택하세요.` : "본문 템플릿을 먼저 선택하세요.";
+      : page.template === "bullet"
+        ? selected ? `현재 ${selected.bulletLevel || 1}단계 선택 · Tab: 하위 위계 · Shift+Tab: 상위 위계` : `현재 항목 ${itemCount}개 · 항목을 선택한 뒤 Tab 또는 Shift+Tab으로 위계를 조정하세요.`
+        : selectedTable ? `테이블 ${tableManagementAxis === "column" ? "열" : "행"}을 관리합니다. 위 선택에서 대상을 바꿀 수 있습니다.`
+        : page.template ? `현재 항목 ${itemCount}개 · 추가하거나 삭제할 항목 개체를 먼저 선택하세요.` : "본문 템플릿을 먼저 선택하세요.";
 }
 
 function renderPages() {
@@ -548,6 +661,12 @@ function applyTextObjectStyle(text, object, wrapper) {
   text.style.textAlign = align;
   text.style.justifyContent = justify;
   text.style.color = object.textColor || "";
+  if (["bullet-item", "cover-item"].includes(object.role)) {
+    const level = clamp(1, Number(object.bulletLevel) || 1, 4);
+    text.style.setProperty("--hierarchy-scale", [1, .88, .76, .66][level - 1]);
+  } else {
+    text.style.removeProperty("--hierarchy-scale");
+  }
   if (object.fontSize) {
     text.style.setProperty("--object-font-size", `${object.fontSize}px`);
     wrapper.dataset.manualFontSize = "true";
@@ -561,6 +680,7 @@ function getObjectClass(object) {
   if (object.node) classes.push("node");
   if (object.color) classes.push(object.color);
   if (object.mindLevel) classes.push(`mind-level-${object.mindLevel}`);
+  if (object.pyramidApex) classes.push("pyramid-apex");
   return classes.join(" ");
 }
 
@@ -579,6 +699,10 @@ function createTableElement(object) {
     row.forEach((value, columnIndex) => {
       const cell = document.createElement(rowIndex === 0 ? "th" : "td");
       cell.textContent = value;
+      cell.addEventListener("click", () => {
+        state.selectedIds = new Set([object.id]);
+        renderControls();
+      });
       cell.addEventListener("dblclick", (event) => beginCellEdit(event, object, rowIndex, columnIndex, cell));
       tr.append(cell);
     });
@@ -1188,6 +1312,10 @@ $("#addPageButton").addEventListener("click", () => {
 
 $("#addItemButton").addEventListener("click", addItem);
 $("#removeItemButton").addEventListener("click", removeItem);
+$("#tableAxisSelect").addEventListener("change", (event) => {
+  tableManagementAxis = event.target.value;
+  renderControls();
+});
 $("#undoButton").addEventListener("click", undo);
 
 $("#textColorInput").addEventListener("change", (event) => updateActiveTextStyle("textColor", event.target.value));
@@ -1236,6 +1364,12 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     undo();
     return;
+  }
+  if (event.key === "Tab" && !document.activeElement?.isContentEditable && !["INPUT", "TEXTAREA", "SELECT"].includes(activeTag)) {
+    if (changeSelectedBulletHierarchy(event.shiftKey ? -1 : 1)) {
+      event.preventDefault();
+      return;
+    }
   }
   if (event.key.toLowerCase() === "f" && !["INPUT", "TEXTAREA", "SELECT"].includes(activeTag) && !document.activeElement?.isContentEditable) {
     event.preventDefault();
